@@ -1207,11 +1207,13 @@
             }
 
             // Render matches
+            console.log('Rendering league matches and playoffs...');
             renderMatchList('playoffsList', results.playoffs);
             renderMatchList('matchLog', results.matches);
 
-            // Render Squads (if available)
-            // Note: results.squads might be missing in Gemini output unless we pass it through
+            // Render Squads immediately
+            console.log('Rendering team squads...');
+            renderTeamSquads();
         }
 
         function updateText(id, val, fallback) {
@@ -1369,6 +1371,73 @@
             }
 
             return html;
+        }
+
+        function renderTeamSquads() {
+            const savedResults = sessionStorage.getItem("IPL_RESULTS");
+            if (!savedResults) return;
+
+            let data;
+            try {
+                data = JSON.parse(savedResults);
+            } catch (e) {
+                console.error("Error parsing results for squads", e);
+                return;
+            }
+
+            const container = document.getElementById('teamsOverview');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const teams = data.standings || data.pointsTable || [];
+            if (!teams || teams.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-5">NO TEAM DATA AVAILABLE</div>';
+                return;
+            }
+
+            teams.forEach(team => {
+                const squad = team.squad || team.players || [];
+                const owner = team.playerName || 'Unknown Owner';
+
+                const card = document.createElement('div');
+                card.className = 'squad-card fade-in-up';
+
+                let playersHtml = '<div class="row g-2">';
+                if (squad.length > 0) {
+                    squad.forEach(p => {
+                        const role = p.roleKey || p.role || 'Player';
+                        const price = p.price ? `₹${(p.price / 10000000).toFixed(2)} Cr` : '';
+                        playersHtml += `
+                            <div class="col-md-4 col-lg-3">
+                                <div class="p-2 border border-secondary border-opacity-25 rounded bg-black bg-opacity-25 h-100">
+                                    <div class="fw-bold text-white small text-truncate">${p.name}</div>
+                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                        <span class="badge bg-secondary text-light small" style="font-size:0.7em">${role}</span>
+                                        <span class="text-warning small font-monospace">${price}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    playersHtml += '<div class="col-12 text-center text-muted small py-3">No players in squad data</div>';
+                }
+                playersHtml += '</div>';
+
+                card.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary border-opacity-25 pb-2">
+                        <div>
+                            <h4 class="text-white mb-0 font-head fw-bold">${team.name}</h4>
+                            <div class="text-info small fw-bold mt-1">OWNER: ${owner.toUpperCase()}</div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-dark border border-secondary text-white-50">${squad.length} Players</span>
+                        </div>
+                    </div>
+                    ${playersHtml}
+                `;
+                container.appendChild(card);
+            });
         }
 
         // Expose to global scope for script.js if needed

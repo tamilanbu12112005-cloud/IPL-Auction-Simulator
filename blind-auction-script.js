@@ -2689,6 +2689,13 @@ socket.on("timer_tick", (val) => {
     timerEl.classList.remove("timer-paused", "timer-danger");
     if (val <= 3) timerEl.classList.add("timer-danger");
   }
+
+  // Also update exchange timer if present (for decision phase)
+  const exchangeTimer = document.getElementById("exchangeTimerValue");
+  if (exchangeTimer) {
+     exchangeTimer.innerText = val;
+     if (val <= 3) exchangeTimer.style.color = "red";
+  }
 });
 
 socket.off("timer_status");

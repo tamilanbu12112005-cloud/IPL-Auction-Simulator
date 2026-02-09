@@ -442,6 +442,193 @@
                 overflow-y: auto;
             }
         }
+
+        /* Resume Game Modal */
+        .resume-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .resume-modal {
+            background: rgba(20, 20, 40, 0.95);
+            border: 1px solid var(--brand-gold);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.2);
+            transform: scale(0.9);
+            animation: scaleIn 0.3s ease-out forwards;
+        }
+
+        @keyframes scaleIn {
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .resume-header {
+            font-family: var(--font-head);
+            font-size: 2.5rem;
+            color: var(--brand-gold);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .resume-details {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .resume-actions {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .btn-resume,
+        .btn-dismiss {
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-family: var(--font-head);
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+        }
+
+        .btn-resume {
+            background: var(--brand-gold);
+            color: #000;
+            font-weight: 700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+
+        .btn-resume:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+        }
+
+        .btn-dismiss {
+            background: transparent;
+            border: 1px solid rgba(255, 50, 50, 0.5);
+            color: #ff5050;
+        }
+
+        .btn-dismiss:hover {
+            background: rgba(255, 50, 50, 0.1);
+            border-color: #ff5050;
+        }
+
+        /* Active Campaigns Section */
+        .campaign-section {
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 40px;
+            display: none;
+            /* Hidden by default */
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .campaign-notification {
+            background: rgba(255, 165, 0, 0.15);
+            /* Slightly darker/more visible */
+            border: 1px solid #ffae00;
+            border-radius: 16px;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(255, 165, 0, 0.15);
+            transition: transform 0.3s;
+        }
+
+        .campaign-notification:hover {
+            transform: translateX(5px);
+        }
+
+        .campaign-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .campaign-title {
+            font-family: var(--font-head);
+            font-size: 1.8rem;
+            color: #ffae00;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(255, 174, 0, 0.3);
+        }
+
+        .campaign-details {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-family: var(--font-body);
+        }
+
+        .campaign-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn-camp-resume {
+            background: #ffae00;
+            color: #000;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 30px;
+            font-family: var(--font-head);
+            font-size: 1.2rem;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+
+        .btn-camp-resume:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #ffae00;
+            background: #ffc107;
+        }
+
+        .btn-camp-dismiss {
+            background: rgba(0, 0, 0, 0.3);
+            color: #ff5050;
+            border: 1px solid rgba(255, 80, 80, 0.5);
+            padding: 10px 30px;
+            border-radius: 30px;
+            font-family: var(--font-head);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+
+        .btn-camp-dismiss:hover {
+            background: rgba(255, 80, 80, 0.2);
+            border-color: #ff5050;
+            color: #fff;
+        }
     </style>
 </head>
 
@@ -465,6 +652,16 @@
     <main class="viewport">
         <div class="hero-header">
             <h1 class="hero-title" id="triggerTitle">Select Your Auction Game</h1>
+        </div>
+
+        <!-- ACTIVE CAMPAIGNS LIST -->
+        <div id="activeCampaignsSection" class="campaign-section">
+            <h3
+                style="font-family: var(--font-head); color: rgba(255,255,255,0.5); margin-bottom: 20px; letter-spacing: 2px;">
+                YOUR ACTIVE CAMPAIGNS</h3>
+            <div id="campaignsList">
+                <!-- Injected via JS -->
+            </div>
         </div>
 
 
@@ -520,6 +717,21 @@
         <button class="terminal-close" onclick="closeTerminal()">TERMINATE_SESSION</button>
     </div>
 
+    <!-- Resume Game Modal -->
+    <div id="resumeGameModal" class="resume-modal-overlay" style="display: none;">
+        <div class="resume-modal">
+            <div class="resume-header">⚠️ Active Session Found</div>
+            <div class="resume-details">
+                Redirect intercepted. You have an active auction in progress.<br>
+                Room ID: <strong id="resumeRoomId" style="color: #fff;">...</strong>
+            </div>
+            <div class="resume-actions">
+                <button id="btnResume" class="btn-resume">Continue Game</button>
+                <button id="btnDismiss" class="btn-dismiss">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="auth.js"></script>
     <script>
@@ -564,6 +776,138 @@
         });
 
         // ✨ Check for active game
+        window.addEventListener('active_game_detected', (e) => {
+            const data = e.detail;
+            console.log("Dashboard received active game:", data);
+
+            const modal = document.getElementById('resumeGameModal');
+            const roomIdSpan = document.getElementById('resumeRoomId');
+            const btnResume = document.getElementById('btnResume');
+            const btnDismiss = document.getElementById('btnDismiss');
+
+            if (roomIdSpan) roomIdSpan.textContent = data.roomId;
+            if (modal) modal.style.display = 'flex';
+
+            // Resume Logic
+            if (btnResume) {
+                btnResume.onclick = () => {
+                    if (data.auctionState === "SQUAD_SELECTION" || data.auctionState === "RESULTS") {
+                        window.location.href = "play.html";
+                    } else {
+                        if (data.gameType === "blind") {
+                            window.location.href = "blind-auction.html";
+                        } else {
+                            window.location.href = "ipl.html";
+                        }
+                    }
+                };
+            }
+
+            // Dismiss Logic
+            if (btnDismiss) {
+                btnDismiss.onclick = () => {
+                    localStorage.removeItem("auto_reconnect_room");
+                    localStorage.removeItem("auto_reconnect_team");
+                    localStorage.removeItem("auto_reconnect_type");
+                    localStorage.removeItem("auto_reconnect_state");
+                    localStorage.removeItem("ipl_team_" + data.roomId);
+                    if (modal) modal.style.display = 'none';
+                };
+            }
+        });
+
+        // --- DASHBOARD ACTIVE GAMES LOGIC ---
+        const socket = io(); // Connect via global socket.io
+
+        socket.on("connect", () => {
+            console.log("Dashboard connected to socket.");
+            fetchActiveGames();
+        });
+
+        function fetchActiveGames() {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user) {
+                // Send basic user info. Server might also use socket.playerId but better to send stored email too.
+                socket.emit("get_my_active_games", {
+                    email: user.email,
+                    id: user.id // If available
+                });
+            }
+        }
+
+        socket.on("active_games_list", (games) => {
+            const container = document.getElementById("activeCampaignsSection");
+            const list = document.getElementById("campaignsList");
+            if (!container || !list) return;
+
+            list.innerHTML = "";
+            let count = 0;
+
+            const dismissed = JSON.parse(localStorage.getItem("dismissed_rooms") || "[]");
+
+            games.forEach(g => {
+                if (dismissed.includes(g.roomId)) return; // Skip dismissed
+
+                count++;
+                const isBlind = g.gameType === "blind";
+                const icon = isBlind ? "🕶️" : "🏏";
+                const modeLabel = isBlind ? "BLIND AUCTION" : "IPL AUCTION";
+
+                const teamText = g.teamName && g.teamName !== "Unknown" ? `<span class="text-white"> • Team: </span> <span style="color:var(--brand-blue)">${g.teamName}</span>` : "";
+
+                const timeAgo = new Date(g.lastActive).toLocaleTimeString();
+
+                const div = document.createElement("div");
+                div.className = "campaign-notification";
+                div.innerHTML = `
+                    <div class="campaign-info">
+                        <div class="campaign-title">
+                            ${icon} ${modeLabel} <span style="font-size: 0.8em; color: #fff; opacity: 0.5; margin-left: 10px;">ID: ${g.roomId}</span>
+                        </div>
+                        <div class="campaign-details">
+                            Status: <span style="color: #00ff00;">LIVE</span> ${teamText} <br>
+                            <span style="font-size: 0.8em; opacity: 0.6">Last detected: ${timeAgo}</span>
+                        </div>
+                    </div>
+                    <div class="campaign-actions">
+                        <button class="btn-camp-resume" onclick="resumeGame('${g.roomId}', '${g.gameType}', '${g.state}')">RESUME</button>
+                        <button class="btn-camp-dismiss" onclick="dismissGame('${g.roomId}')">DISMISS</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+
+            if (count > 0) {
+                container.style.display = "block";
+            } else {
+                container.style.display = "none";
+            }
+        });
+
+        window.resumeGame = function (roomId, type, state) {
+            // Set auto-reconnect variables just in case
+            localStorage.setItem("auto_reconnect_room", roomId);
+
+            if (state === "SQUAD_SELECTION" || state === "RESULTS") {
+                window.location.href = "play.html";
+            } else if (type === "blind") {
+                window.location.href = "blind-auction.html";
+            } else {
+                window.location.href = "ipl.html";
+            }
+        };
+
+        window.dismissGame = function (roomId) {
+            if (confirm("Are you sure you want to dismiss this game notification?")) {
+                const dismissed = JSON.parse(localStorage.getItem("dismissed_rooms") || "[]");
+                if (!dismissed.includes(roomId)) {
+                    dismissed.push(roomId);
+                    localStorage.setItem("dismissed_rooms", JSON.stringify(dismissed));
+                }
+                // Refresh list
+                fetchActiveGames();
+            }
+        };
 
 
         function openTerminal() {

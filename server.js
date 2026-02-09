@@ -18,7 +18,6 @@ const AI = require("./ai");
 console.log("-----------------------------------------");
 console.log("SERVER STARTUP ENV CHECK:");
 console.log("MONGODB_URI:", process.env.MONGODB_URI ? "LOADED (Starts with " + process.env.MONGODB_URI.substring(0, 10) + "...)" : "UNDEFINED");
-console.log("GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? "LOADED (Starts with " + process.env.GEMINI_API_KEY.substring(0, 5) + "...)" : "UNDEFINED");
 console.log("-----------------------------------------");
 
 const app = express();
@@ -448,6 +447,67 @@ io.on("connection", (socket) => {
     if (roomId) predictGame.submitPrediction(socket, roomId, data);
   });
 
+  // 🔍 GET ACTIVE GAMES FOR USER (DASHBOARD)
+  socket.on("get_my_active_games", async (userData) => {
+    try {
+      // Allow searching by email or playerId (for guests or different auth methods)
+      const userEmail = userData.email;
+      const playerId = userData.id || socket.playerId;
+
+      if (!userEmail && !playerId) {
+        socket.emit("active_games_list", []);
+        return;
+      }
+
+      console.log(`🔍 Searching active games for: ${userEmail} / ${playerId}`);
+
+      // Query DB for active rooms involving this user
+      // We look for rooms where auctionState is NOT completed ('RESULTS' usually end state, 
+      // but let's check completedAt for sure)
+      
+      const query = {
+        $or: [
+          { "teams.ownerEmail": userEmail },
+          { "teams.ownerPlayerId": playerId },
+          { "teams.playerEmail": userEmail } // Sometimes stored here
+        ],
+        completedAt: { $exists: false }, // Only incomplete games
+        auctionState: { $ne: "RESULTS" } // Double check state
+      };
+
+      const activeRooms = await Room.find(query)
+        .select("roomId gameType auctionState teams createdAt lastActivity")
+        .sort({ lastActivity: -1 })
+        .limit(5);
+
+      // Map to simplified object for frontend
+      const gamesList = activeRooms.map(r => {
+        // Find user's specific team in this room
+        const team = r.teams.find(t => 
+          (userEmail && t.ownerEmail === userEmail) || 
+          (playerId && t.ownerPlayerId === playerId) ||
+          (userEmail && t.playerEmail === userEmail)
+        );
+
+        return {
+          roomId: r.roomId,
+          gameType: r.gameType || "normal", // Default to IPL/Normal
+          state: r.auctionState,
+          teamName: team ? team.name : "Unknown",
+          teamId: team ? team.bidKey : null,
+          lastActive: r.lastActivity
+        };
+      });
+
+      console.log(`✅ Found ${gamesList.length} active games for user.`);
+      socket.emit("active_games_list", gamesList);
+
+    } catch (e) {
+      console.error("❌ Error fetching active games:", e);
+      socket.emit("active_games_list", []);
+    }
+  });
+
   // Trade System Handlers
   socket.on("create_trade_request", (data) => {
     const roomId = getRoomId(socket);
@@ -575,6 +635,17 @@ io.on("connection", (socket) => {
       console.log(`Running AI Simulation for Room: ${roomId}`);
       
       const teamsCopy = JSON.parse(JSON.stringify(r.teams));
+      
+      // Inject owner names for display
+      if (r.playerNames) {
+        teamsCopy.forEach(t => {
+          if (t.ownerPlayerId && r.playerNames[t.ownerPlayerId]) {
+            t.playerName = r.playerNames[t.ownerPlayerId];
+          } else {
+            t.playerName = t.ownerEmail || 'CPU';
+          }
+        });
+      }
       
       // Pass the custom prompt to AI
       const simulationResult = await AI.runFullTournament(teamsCopy, prompt || "");
@@ -2259,6 +2330,7 @@ function startBlindBidTimer(roomId) {
   if (!r) return;
 
   let timeLeft = r.blindAuction.bidTimer;
+  r.blindAuction.timer = timeLeft; // Sync specifically for pause resume
 
   // Clear existing timer
   clearBlindAuctionTimers(r);
@@ -2268,9 +2340,17 @@ function startBlindBidTimer(roomId) {
   r.blindAuction.isContestActive = false;
   r.blindAuction.contestBids = {};
 
+  // Ensure timer is running when function is called
+  r.timerPaused = false;
+  io.to(roomId).emit("timer_status", false);
+
   r.blindAuction.timerInterval = setInterval(() => {
+    // Check global pause state
+    if (r.timerPaused) return;
+
     timeLeft--;
-    io.to(roomId).emit("blind_timer_tick", timeLeft);
+    r.blindAuction.timer = timeLeft;
+    io.to(roomId).emit("timer_tick", timeLeft);
 
     if (timeLeft <= 0) {
       clearInterval(r.blindAuction.timerInterval);
@@ -2368,13 +2448,20 @@ function revealBids(roomId) {
     // Stop any existing interval (though should be null)
     if (r.blindAuction.timerInterval)
       clearInterval(r.blindAuction.timerInterval);
+    
+    // Ensure timer is running
+    r.timerPaused = false;
+    io.to(roomId).emit("timer_status", false);
 
     r.blindAuction.timerInterval = setInterval(() => {
+      // Check global pause state
+      if (r.timerPaused) return;
+
       decisionTime--;
       r.blindAuction.timer = decisionTime;
 
-      // Re-use blind_timer_tick for the exchange window countdown
-      io.to(roomId).emit("blind_timer_tick", decisionTime);
+      // Re-use timer_tick for the exchange window countdown
+      io.to(roomId).emit("timer_tick", decisionTime);
 
       if (decisionTime <= 0) {
         clearInterval(r.blindAuction.timerInterval);
@@ -2391,7 +2478,13 @@ function revealBids(roomId) {
     // No bids, player unsold
     console.log(`${r.blindAuction.currentPlayer.name} - UNSOLD`);
 
-    // Auto-advance after 5 seconds for UNSOLD
+    // Emit IMMEDIATE update so clients see "UNSOLD"
+    io.to(roomId).emit("unsold_finalized", {
+      message: `${r.blindAuction.currentPlayer.name} was UNSOLD`,
+      player: r.blindAuction.currentPlayer
+    });
+
+    // Auto-advance after 1 second for UNSOLD (Quick transition)
     setTimeout(() => {
       const currentRoom = rooms[roomId];
       // Check if room and player are still the same to avoid conflicts
@@ -2409,16 +2502,18 @@ function revealBids(roomId) {
         currentRoom.blindAuction.winner = null;
         clearBlindAuctionTimers(currentRoom);
 
-        // Emit to clients so they can hide overlays
-        io.to(roomId).emit("unsold_finalized", {
-          message: `${currentRoom.blindAuction.currentPlayer.name} was Unsold`,
-        });
-
         // Advance
         currentRoom.auctionIndex++;
-        startNextBlindPlayer(roomId);
+        // Explicitly check index bound before calling next
+        if (currentRoom.auctionIndex < currentRoom.auctionQueue.length) {
+          startNextBlindPlayer(roomId);
+        } else {
+          // End of auction
+          console.log("Blind auction complete (after unsold). Open squad selection.");
+          io.to(roomId).emit("open_squad_selection");
+        }
       }
-    }, 5000);
+    }, 1000); // Reduced from 5000ms to 1000ms
   }
 }
 
@@ -2427,14 +2522,25 @@ function startExchangeTimer(roomId) {
   if (!r) return;
 
   let timeLeft = r.blindAuction.exchangeTimer;
+  r.blindAuction.timer = timeLeft;
 
   // Clear any existing exchange timer
   if (r.blindAuction.exchangeInterval) {
     clearInterval(r.blindAuction.exchangeInterval);
   }
+  
+  // Ensure timer is running
+  r.timerPaused = false;
+  io.to(roomId).emit("timer_status", false);
 
   r.blindAuction.exchangeInterval = setInterval(() => {
+    // Check global pause state
+    if (r.timerPaused) return;
+
     timeLeft--;
+    r.blindAuction.timer = timeLeft;
+    // Emit tick update to main timer
+    io.to(roomId).emit("timer_tick", timeLeft);
 
     if (timeLeft <= 0) {
       clearInterval(r.blindAuction.exchangeInterval);

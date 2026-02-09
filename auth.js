@@ -227,27 +227,24 @@ const Auth = {
       tempSocket.emit("check_active_room");
     });
 
-    tempSocket.on("active_room_found", (data) => {
-      console.log("🔄 Active auction found! Auto-reconnecting...", data);
+      tempSocket.on("active_room_found", (data) => {
+      console.log("🔄 Active auction found! Ready to resume...", data);
       
       // Store room info for auto-join
       localStorage.setItem("auto_reconnect_room", data.roomId);
       localStorage.setItem("auto_reconnect_team", data.teamKey);
+      localStorage.setItem("auto_reconnect_type", data.gameType || "normal");
+      localStorage.setItem("auto_reconnect_state", data.auctionState || "LOBBY");
       
       // Disconnect temp socket
       tempSocket.disconnect();
+
+      // ✨ STOP AUTO REDIRECT - Dispatch Event for Dashboard UI
+      window.dispatchEvent(new CustomEvent('active_game_detected', { detail: data }));
       
-      // Redirect based on auction state
-      if (data.auctionState === "SQUAD_SELECTION" || data.auctionState === "RESULTS") {
-        // Go to play.html for tournament
-        window.location.href = "play.html";
-      } else {
-        // Go to auction page (ipl.html or blind-auction.html)
-        if (data.gameType === "blind") {
-          window.location.href = "blind-auction.html";
-        } else {
-          window.location.href = "ipl.html";
-        }
+      // If we are NOT on dashboard, go there so the modal can be shown
+      if (!window.location.pathname.includes("dashboard.html")) {
+          window.location.href = "dashboard.html";
       }
     });
 
