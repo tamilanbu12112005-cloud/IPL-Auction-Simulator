@@ -1007,6 +1007,10 @@
                                 class="text-white-50 text-uppercase fw-bold mb-3 mt-4 border-bottom border-white border-opacity-10 pb-2">
                                 <i class="fa-solid fa-clock-rotate-left me-2 text-secondary"></i>League Matches
                             </h6>
+                            <div id="teamFilterContainer" class="d-flex gap-2 overflow-auto pb-2 mb-2 custom-scrollbar"
+                                style="white-space: nowrap;">
+                                <!-- Filter pills will be injected here -->
+                            </div>
                             <div id="matchLog" class="custom-scrollbar" style="max-height: 400px; overflow-y: auto;">
                             </div>
                         </div>
@@ -1423,8 +1427,12 @@
             }
 
             // Render matches
+            window.allMatches = results.matches;
             renderMatchList('playoffsList', results.playoffs);
             renderMatchList('matchLog', results.matches);
+
+            // Render Team Filters
+            renderTeamFilters(results.pointsTable || results.teams || []);
 
             // Render Squads
             renderTeamSquads();
@@ -1962,6 +1970,67 @@
         // Expose to global scope for script.js if needed
         window.showScorecard = showScorecard;
         window.renderTeamSquads = renderTeamSquads;
+
+        // Team Filter Logic
+        function renderTeamFilters(teams) {
+            const container = document.getElementById('teamFilterContainer');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            // 'All' Filter
+            const allBtn = document.createElement('button');
+            allBtn.className = 'btn btn-sm btn-outline-secondary text-uppercase fw-bold active-filter';
+            allBtn.style.fontSize = '0.75rem';
+            allBtn.style.borderRadius = '20px';
+            allBtn.style.border = '1px solid rgba(255,255,255,0.2)';
+            allBtn.style.color = '#fff';
+            allBtn.style.background = 'rgba(255,255,255,0.1)';
+            allBtn.textContent = 'All Matches';
+            allBtn.onclick = () => filterMatches('ALL', allBtn);
+            container.appendChild(allBtn);
+
+            if (!teams || teams.length === 0) return;
+
+            teams.forEach(team => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-sm btn-outline-secondary text-uppercase fw-bold';
+                btn.style.fontSize = '0.75rem';
+                btn.style.borderRadius = '20px';
+                btn.style.border = '1px solid rgba(255,255,255,0.1)';
+                btn.style.color = '#ccc';
+                btn.style.background = 'transparent';
+                btn.textContent = team.name || team.teamName;
+                btn.onclick = () => filterMatches(team.name || team.teamName, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function filterMatches(teamName, clickedBtn) {
+            const container = document.getElementById('teamFilterContainer');
+
+            // Update active state
+            Array.from(container.children).forEach(btn => {
+                btn.style.background = 'transparent';
+                btn.style.color = '#ccc';
+                btn.style.borderColor = 'rgba(255,255,255,0.1)';
+            });
+
+            clickedBtn.style.background = 'rgba(255,255,255,0.1)';
+            clickedBtn.style.color = '#fff';
+            clickedBtn.style.borderColor = 'rgba(255,255,255,0.2)';
+
+            if (!window.allMatches) return;
+
+            let filtered = [];
+            if (teamName === 'ALL') {
+                filtered = window.allMatches;
+            } else {
+                filtered = window.allMatches.filter(m => m.t1 === teamName || m.t2 === teamName);
+            }
+
+            renderMatchList('matchLog', filtered);
+        }
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
