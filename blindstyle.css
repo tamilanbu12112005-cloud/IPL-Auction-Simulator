@@ -1762,9 +1762,14 @@ h5,
     flex-direction: column;
   }
   
-  .chat-panel,
+  .chat-panel {
+    flex: 7;
+    height: auto;
+  }
+  
   .log-panel {
-    height: 50%;
+    flex: 3;
+    height: auto;
   }
 }
 

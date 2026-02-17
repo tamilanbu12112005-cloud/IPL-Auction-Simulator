@@ -1,0 +1,1141 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for auction-multiplayer/player-database.js</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../prettify.css" />
+    <link rel="stylesheet" href="../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">auction-multiplayer</a> player-database.js</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>10/10</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">50% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>1/2</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>10/10</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">372x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">588x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">const PLAYER_DATABASE = {
+&nbsp;
+&nbsp;
+&nbsp;
+        "Virat Kohli": { bat: 98, bowl: 10, luck: 90, type: "bat", role: "Opener, Anchor", },
+        "Rohit Sharma": { bat: 95, bowl: 15, luck: 92, type: "bat", role: "Opener, Captain", },
+        "Shubman Gill": { bat: 92, bowl: 5, luck: 88, type: "bat", role: "Opener, Captain", },
+        "Suryakumar Yadav": { bat: 96, bowl: 5, luck: 85, type: "bat", role: "Middle Order, 360, Power Hitter, Finisher", },
+        "Travis Head": { bat: 94, bowl: 20, luck: 88, type: "bat", role: "Opener, Power Hitter", },
+        "Yashasvi Jaiswal": { bat: 90, bowl: 10, luck: 85, type: "bat", role: "Opener, Powerplay Specialist", },
+        "Ruturaj Gaikwad": { bat: 89, bowl: 5, luck: 88, type: "bat", role: "Opener, Anchor", },
+        "Rinku Singh": { bat: 90, bowl: 5, luck: 95, type: "bat", role: "Finisher, Power Hitter", },
+        "Shreyas Iyer": { bat: 88, bowl: 10, luck: 85, type: "bat", role: "Middle Order, Captain, Spin Basher", },
+        "Faf du Plessis": { bat: 88, bowl: 5, luck: 82, type: "bat", role: "Opener, Captain", },
+        "David Warner": { bat: 89, bowl: 5, luck: 78, type: "bat", role: "Opener" },
+        "David Miller": { bat: 89, bowl: 5, luck: 90, type: "bat", role: "Finisher, Power Hitter", },
+        "Harry Brook": { bat: 86, bowl: 10, luck: 75, type: "bat", role: "Middle Order, Power Hitter", },
+        "Kane Williamson": { bat: 88, bowl: 15, luck: 82, type: "bat", role: "Middle Order, Anchor, Captain", },
+        "Shimron Hetmyer": { bat: 85, bowl: 5, luck: 85, type: "bat", role: "Finisher, Power Hitter", },
+        "Rovman Powell": { bat: 82, bowl: 15, luck: 80, type: "bat", role: "Finisher, Power Hitter", },
+        "Steve Smith": { bat: 86, bowl: 10, luck: 75, type: "bat", role: "Middle Order, Anchor", },
+        "Devon Conway": { bat: 89, bowl: 5, luck: 85, type: "bat", role: "Opener, Anchor", },
+        "Jake Fraser-McGurk": { bat: 88, bowl: 5, luck: 88, type: "bat", role: "Opener, Power Hitter", },
+        "Dewald Brevis": { bat: 80, bowl: 20, luck: 75, type: "bat", role: "Middle Order, Power Hitter", },
+        "Tim David": { bat: 86, bowl: 10, luck: 85, type: "bat", role: "Finisher, Power Hitter", },
+        "Finn Allen": { bat: 83, bowl: 5, luck: 75, type: "bat", role: "Opener, Power Hitter", },
+        "Rilee Rossouw": { bat: 84, bowl: 5, luck: 70, type: "bat", role: "Top Order, Power Hitter", },
+        "Jason Roy": { bat: 85, bowl: 5, luck: 78, type: "bat", role: "Opener, Power Hitter", },
+        "Sai Sudharsan": { bat: 88, bowl: 5, luck: 85, type: "bat", role: "Middle Order, Anchor", },
+        "Tilak Varma": { bat: 87, bowl: 15, luck: 85, type: "bat", role: "Middle Order, Finisher", },
+        "Shikhar Dhawan": { bat: 84, bowl: 5, luck: 80, type: "bat", role: "Opener, Anchor", },
+        "Ajinkya Rahane": { bat: 80, bowl: 5, luck: 75, type: "bat", role: "Top Order, Anchor", },
+        "Prithvi Shaw": { bat: 82, bowl: 5, luck: 70, type: "bat", role: "Opener, Powerplay Specialist", },
+        "Rajat Patidar": { bat: 85, bowl: 5, luck: 82, type: "bat", role: "Middle Order, Spin Basher", },
+        "Rahul Tripathi": { bat: 81, bowl: 5, luck: 75, type: "bat", role: "Top Order, Aggressor", },
+        "Shivam Dube": { bat: 88, bowl: 40, luck: 85, type: "bat", role: "Finisher, Spin Basher", },
+        "Manish Pandey": { bat: 78, bowl: 5, luck: 70, type: "bat", role: "Middle Order, Anchor", },
+        "Devdutt Padikkal": { bat: 80, bowl: 5, luck: 75, type: "bat", role: "Top Order", },
+        "Abhishek Sharma": { bat: 89, bowl: 50, luck: 85, type: "ar", role: "Opener, Power Hitter", },
+        "Sameer Rizvi": { bat: 78, bowl: 10, luck: 75, type: "bat", role: "Finisher", },
+        "Angkrish Raghuvanshi": { bat: 80, bowl: 10, luck: 78, type: "bat", role: "Top Order", },
+        "Ashutosh Sharma": { bat: 84, bowl: 5, luck: 88, type: "bat", role: "Finisher", },
+        "Shashank Singh": { bat: 85, bowl: 10, luck: 88, type: "bat", role: "Finisher", },
+        "Nehal Wadhera": { bat: 82, bowl: 15, luck: 80, type: "bat", role: "Middle Order, Finisher", },
+        "Naman Dhir": { bat: 78, bowl: 40, luck: 75, type: "bat", role: "Middle Order", },
+        "Ayush Badoni": { bat: 80, bowl: 10, luck: 80, type: "bat", role: "Finisher", },
+        "Yash Dhull": { bat: 76, bowl: 5, luck: 75, type: "bat", role: "Top Order" },
+        "Sarfaraz Khan": { bat: 82, bowl: 5, luck: 75, type: "bat", role: "Middle Order", },
+        "Abdul Samad": { bat: 80, bowl: 15, luck: 80, type: "bat", role: "Finisher" },
+        "Vaibhav Suryavanshi": { bat: 76, bowl: 10, luck: 85, type: "bat", role: "Top Order", },
+        "Priyansh Arya": { bat: 80, bowl: 5, luck: 80, type: "bat", role: "Opener" },
+        "Swastik Chikara": { bat: 78, bowl: 5, luck: 75, type: "bat", role: "Opener", },
+        "Musheer Khan": { bat: 78, bowl: 60, luck: 78, type: "bat", role: "All Rounder", },
+        "Aniket Verma": { bat: 75, bowl: 5, luck: 75, type: "bat", role: "Middle Order", },
+        "Rishabh Pant": { bat: 92, bowl: 0, luck: 90, type: "wk", role: "Wicket Keeper, Middle Order, Captain, Finisher", },
+        "MS Dhoni": { bat: 85, bowl: 0, luck: 99, type: "wk", role: "Wicket Keeper, Finisher, Captain", },
+        "Jos Buttler": { bat: 93, bowl: 0, luck: 88, type: "wk", role: "Wicket Keeper, Opener, Power Hitter", },
+        "Heinrich Klaasen": { bat: 95, bowl: 0, luck: 90, type: "wk", role: "Wicket Keeper, Finisher, Spin Basher", },
+        "Sanju Samson": { bat: 90, bowl: 0, luck: 85, type: "wk", role: "Wicket Keeper, Top Order, Captain", },
+        "KL Rahul": { bat: 91, bowl: 0, luck: 85, type: "wk", role: "Wicket Keeper, Opener, Anchor", },
+        "Nicholas Pooran": { bat: 92, bowl: 0, luck: 88, type: "wk", role: "Wicket Keeper, Finisher", },
+        "Quinton de Kock": { bat: 89, bowl: 0, luck: 85, type: "wk", role: "Wicket Keeper, Opener", },
+        "Phil Salt": { bat: 88, bowl: 0, luck: 82, type: "wk", role: "Wicket Keeper, Opener", },
+        "Ishan Kishan": { bat: 87, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Opener", },
+        "Jitesh Sharma": { bat: 82, bowl: 0, luck: 78, type: "wk", role: "Wicket Keeper, Finisher", },
+        "Dhruv Jurel": { bat: 82, bowl: 0, luck: 82, type: "wk", role: "Wicket Keeper, Finisher", },
+        "Dinesh Karthik": { bat: 85, bowl: 0, luck: 88, type: "wk", role: "Wicket Keeper, Finisher", },
+        "Jonny Bairstow": { bat: 90, bowl: 0, luck: 85, type: "wk", role: "Wicket Keeper, Opener", },
+        "Rahmanullah Gurbaz": { bat: 84, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Opener", },
+        "Josh Inglis": { bat: 85, bowl: 0, luck: 82, type: "wk", role: "Wicket Keeper, Middle Order", },
+        "Shai Hope": { bat: 83, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Anchor", },
+        "Tristan Stubbs": { bat: 88, bowl: 15, luck: 85, type: "wk", role: "Wicket Keeper, Finisher", },
+        "Wriddhiman Saha": { bat: 82, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Opener", },
+        "Anuj Rawat": { bat: 78, bowl: 0, luck: 75, type: "wk", role: "Wicket Keeper", },
+        "Prabhsimran Singh": { bat: 84, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Opener", },
+        "KS Bharat": { bat: 78, bowl: 0, luck: 75, type: "wk", role: "Wicket Keeper", },
+        "Vishnu Vinod": { bat: 78, bowl: 0, luck: 75, type: "wk", role: "Wicket Keeper, Finisher", },
+        "Abishek Porel": { bat: 83, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Top Order", },
+        "Robin Minz": { bat: 80, bowl: 0, luck: 82, type: "wk", role: "Wicket Keeper, Power Hitter", },
+        "Kumar Kushagra": { bat: 78, bowl: 0, luck: 78, type: "wk", role: "Wicket Keeper", },
+        "Ryan Rickelton": { bat: 80, bowl: 0, luck: 75, type: "wk", role: "Wicket Keeper", },
+        "Donovan Ferreira": { bat: 82, bowl: 10, luck: 75, type: "wk", role: "Wicket Keeper, Finisher", },
+        "Hardik Pandya": { bat: 88, bowl: 85, luck: 90, type: "ar", role: "Finisher, All Rounder, Pacer", },
+        "Ravindra Jadeja": { bat: 85, bowl: 88, luck: 90, type: "ar", role: "Spinner, All Rounder, Left Arm Orth, Finisher", },
+        "Andre Russell": { bat: 94, bowl: 82, luck: 90, type: "ar", role: "Finisher, All Rounder, Pacer", },
+        "Glenn Maxwell": { bat: 90, bowl: 75, luck: 80, type: "ar", role: "Finisher, All Rounder, Spinner", },
+        "Sunil Narine": { bat: 92, bowl: 90, luck: 92, type: "ar", role: "Opener, Spinner, Mystery Spin, All Rounder", },
+        "Axar Patel": { bat: 84, bowl: 88, luck: 88, type: "ar", role: "Spinner, All Rounder, Left Arm Orth", },
+        "Cameron Green": { bat: 87, bowl: 82, luck: 85, type: "ar", role: "Top Order, All Rounder, Pacer", },
+        "Liam Livingstone": { bat: 87, bowl: 70, luck: 80, type: "ar", role: "Finisher, All Rounder, Spinner", },
+        "Sam Curran": { bat: 78, bowl: 86, luck: 85, type: "ar", role: "All Rounder, Pacer, Swing", },
+        "Marcus Stoinis": { bat: 88, bowl: 75, luck: 88, type: "ar", role: "Finisher, All Rounder, Pacer", },
+        "Will Jacks": { bat: 88, bowl: 60, luck: 85, type: "ar", role: "Opener, All Rounder, Spinner", },
+        "Rachin Ravindra": { bat: 85, bowl: 75, luck: 82, type: "ar", role: "Opener, All Rounder, Spinner", },
+        "Moeen Ali": { bat: 82, bowl: 78, luck: 80, type: "ar", role: "Spinner, All Rounder", },
+        "Mitchell Marsh": { bat: 88, bowl: 78, luck: 82, type: "ar", role: "Top Order, All Rounder, Pacer", },
+        "Pat Cummins": { bat: 75, bowl: 92, luck: 95, type: "ar", role: "Pacer, Captain, All Rounder", },
+        "Ravichandran Ashwin": { bat: 72, bowl: 88, luck: 90, type: "ar", role: "Spinner, All Rounder", },
+        "Nitish Kumar Reddy": { bat: 85, bowl: 78, luck: 88, type: "ar", role: "All Rounder, Pacer", },
+        "Azmatullah Omarzai": { bat: 80, bowl: 78, luck: 78, type: "ar", role: "All Rounder, Pacer", },
+        "Romario Shepherd": { bat: 82, bowl: 75, luck: 78, type: "ar", role: "Finisher, All Rounder, Pacer", },
+        "Mohammad Nabi": { bat: 80, bowl: 80, luck: 78, type: "ar", role: "All Rounder, Spinner", },
+        "Jason Holder": { bat: 75, bowl: 82, luck: 75, type: "ar", role: "All Rounder, Pacer", },
+        "Krunal Pandya": { bat: 78, bowl: 82, luck: 80, type: "ar", role: "All Rounder, Spinner", },
+        "Deepak Hooda": { bat: 78, bowl: 30, luck: 75, type: "ar", role: "Middle Order, All Rounder", },
+        "Rahul Tewatia": { bat: 82, bowl: 40, luck: 92, type: "ar", role: "Finisher, All Rounder", },
+        "Riyan Parag": { bat: 85, bowl: 40, luck: 80, type: "ar", role: "Middle Order, All Rounder", },
+        "Shahrukh Khan": { bat: 82, bowl: 10, luck: 78, type: "ar", role: "Finisher, All Rounder", },
+        "Chris Woakes": { bat: 65, bowl: 85, luck: 82, type: "ar", role: "All Rounder, Pacer", },
+        "Daniel Sams": { bat: 60, bowl: 82, luck: 80, type: "ar", role: "All Rounder, Pacer", },
+        "Kyle Mayers": { bat: 85, bowl: 70, luck: 80, type: "ar", role: "Opener, All Rounder, Pacer", },
+        "Vijay Shankar": { bat: 78, bowl: 60, luck: 75, type: "ar", role: "All Rounder, Pacer", },
+        "Shahbaz Ahmed": { bat: 75, bowl: 78, luck: 80, type: "ar", role: "All Rounder, Spinner", },
+        "Ramandeep Singh": { bat: 78, bowl: 65, luck: 80, type: "ar", role: "All Rounder, Pacer", },
+        "Lalit Yadav": { bat: 72, bowl: 65, luck: 75, type: "ar", role: "All Rounder, Spinner", },
+        "Washington Sundar": { bat: 75, bowl: 82, luck: 80, type: "ar", role: "All Rounder, Spinner", },
+        "Nitish Rana": { bat: 82, bowl: 40, luck: 75, type: "ar", role: "Middle Order, Part-timer", },
+        "Venkatesh Iyer": { bat: 84, bowl: 50, luck: 80, type: "ar", role: "Middle Order, All Rounder", },
+        "Daryl Mitchell": { bat: 86, bowl: 50, luck: 82, type: "ar", role: "Middle Order, All Rounder", },
+        "Aiden Markram": { bat: 85, bowl: 45, luck: 82, type: "ar", role: "Middle Order, Captain", },
+        "Sikandar Raza": { bat: 84, bowl: 82, luck: 82, type: "ar", role: "All Rounder, Spinner", },
+        "Mitchell Santner": { bat: 70, bowl: 86, luck: 85, type: "ar", role: "All Rounder, Spinner", },
+        "Arjun Tendulkar": { bat: 40, bowl: 78, luck: 75, type: "ar", role: "All Rounder, Pacer", },
+        "Tanush Kotian": { bat: 60, bowl: 75, luck: 75, type: "ar", role: "All Rounder, Spinner", },
+        "Suryansh Shedge": { bat: 65, bowl: 60, luck: 75, type: "ar", role: "All Rounder", },
+        "Vipraj Nigam": { bat: 60, bowl: 70, luck: 75, type: "ar", role: "All Rounder", },
+        "Jasprit Bumrah": { bat: 20, bowl: 99, luck: 95, type: "bowl", role: "Pacer, Death Bowler, Yorker King", },
+        "Mitchell Starc": { bat: 30, bowl: 92, luck: 88, type: "bowl", role: "Pacer, Powerplay Specialist", },
+        "Trent Boult": { bat: 20, bowl: 90, luck: 88, type: "bowl", role: "Pacer, Powerplay Specialist, Swing", },
+        "Kagiso Rabada": { bat: 25, bowl: 89, luck: 85, type: "bowl", role: "Pacer, Express", },
+        "Jofra Archer": { bat: 40, bowl: 90, luck: 80, type: "bowl", role: "Pacer, Express", },
+        "Matheesha Pathirana": { bat: 5, bowl: 91, luck: 88, type: "bowl", role: "Pacer, Death Bowler", },
+        "Gerald Coetzee": { bat: 20, bowl: 86, luck: 85, type: "bowl", role: "Pacer", },
+        "Lockie Ferguson": { bat: 20, bowl: 88, luck: 85, type: "bowl", role: "Pacer, Express", },
+        "Mark Wood": { bat: 20, bowl: 89, luck: 85, type: "bowl", role: "Pacer, Express", },
+        "Anrich Nortje": { bat: 10, bowl: 88, luck: 80, type: "bowl", role: "Pacer, Express", },
+        "Josh Hazlewood": { bat: 15, bowl: 90, luck: 85, type: "bowl", role: "Pacer, Line &amp; Length", },
+        "Marco Jansen": { bat: 65, bowl: 86, luck: 82, type: "bowl", role: "Pacer, Powerplay Specialist", },
+        "Spencer Johnson": { bat: 20, bowl: 84, luck: 80, type: "bowl", role: "Pacer", },
+        "Alzarri Joseph": { bat: 35, bowl: 85, luck: 80, type: "bowl", role: "Pacer", },
+        "Dilshan Madushanka": { bat: 10, bowl: 84, luck: 80, type: "bowl", role: "Pacer", },
+        "Nuwan Thushara": { bat: 10, bowl: 83, luck: 80, type: "bowl", role: "Pacer, Sling", },
+        "Mustafizur Rahman": { bat: 10, bowl: 87, luck: 85, type: "bowl", role: "Pacer, Cutter Specialist", },
+        "Fazalhaq Farooqi": { bat: 10, bowl: 85, luck: 80, type: "bowl", role: "Pacer", },
+        "Naveen-ul-Haq": { bat: 10, bowl: 86, luck: 82, type: "bowl", role: "Pacer, Slower Ball", },
+        "Nathan Ellis": { bat: 15, bowl: 85, luck: 80, type: "bowl", role: "Pacer" },
+        "Kwena Maphaka": { bat: 5, bowl: 82, luck: 80, type: "bowl", role: "Pacer" },
+        "Mohammed Shami": { bat: 15, bowl: 91, luck: 85, type: "bowl", role: "Pacer, Seam", },
+        "Mohammed Siraj": { bat: 10, bowl: 88, luck: 85, type: "bowl", role: "Pacer, Powerplay Specialist", },
+        "Arshdeep Singh": { bat: 10, bowl: 88, luck: 85, type: "bowl", role: "Pacer, Death Bowler", },
+        "Deepak Chahar": { bat: 30, bowl: 85, luck: 82, type: "bowl", role: "Pacer, Swing", },
+        "Shardul Thakur": { bat: 45, bowl: 82, luck: 90, type: "bowl", role: "Pacer, Golden Arm", },
+        "Bhuvneshwar Kumar": { bat: 30, bowl: 86, luck: 85, type: "bowl", role: "Pacer, Swing", },
+        "T Natarajan": { bat: 5, bowl: 87, luck: 82, type: "bowl", role: "Pacer, Death Bowler", },
+        "Mohit Sharma": { bat: 10, bowl: 86, luck: 85, type: "bowl", role: "Pacer, Slower Ball", },
+        "Harshal Patel": { bat: 40, bowl: 88, luck: 88, type: "bowl", role: "Pacer, Death Bowler, Slower Ball", },
+        "Mayank Yadav": { bat: 10, bowl: 88, luck: 85, type: "bowl", role: "Pacer, Express", },
+        "Avesh Khan": { bat: 15, bowl: 85, luck: 80, type: "bowl", role: "Pacer" },
+        "Khaleel Ahmed": { bat: 10, bowl: 86, luck: 82, type: "bowl", role: "Pacer" },
+        "Mukesh Kumar": { bat: 10, bowl: 85, luck: 82, type: "bowl", role: "Pacer, Death Bowler", },
+        "Ishant Sharma": { bat: 20, bowl: 83, luck: 80, type: "bowl", role: "Pacer" },
+        "Umesh Yadav": { bat: 30, bowl: 84, luck: 80, type: "bowl", role: "Pacer" },
+        "Prasidh Krishna": { bat: 10, bowl: 85, luck: 80, type: "bowl", role: "Pacer", },
+        "Umran Malik": { bat: 10, bowl: 84, luck: 75, type: "bowl", role: "Pacer, Express", },
+        "Harshit Rana": { bat: 40, bowl: 85, luck: 85, type: "bowl", role: "Pacer" },
+        "Akash Deep": { bat: 20, bowl: 84, luck: 80, type: "bowl", role: "Pacer" },
+        "Yash Dayal": { bat: 10, bowl: 83, luck: 80, type: "bowl", role: "Pacer" },
+        "Akash Madhwal": { bat: 10, bowl: 84, luck: 80, type: "bowl", role: "Pacer" },
+        "Vidwath Kaverappa": { bat: 10, bowl: 80, luck: 75, type: "bowl", role: "Pacer", },
+        "Tushar Deshpande": { bat: 15, bowl: 84, luck: 82, type: "bowl", role: "Pacer", },
+        "Vaibhav Arora": { bat: 15, bowl: 82, luck: 80, type: "bowl", role: "Pacer" },
+        "Yash Thakur": { bat: 10, bowl: 83, luck: 80, type: "bowl", role: "Pacer" },
+        "Kartik Tyagi": { bat: 20, bowl: 82, luck: 75, type: "bowl", role: "Pacer" },
+        "Chetan Sakariya": { bat: 20, bowl: 82, luck: 80, type: "bowl", role: "Pacer", },
+        "Simarjeet Singh": { bat: 15, bowl: 82, luck: 75, type: "bowl", role: "Pacer", },
+        "Rasikh Salam": { bat: 10, bowl: 82, luck: 80, type: "bowl", role: "Pacer" },
+        "Ashwani Kumar": { bat: 10, bowl: 78, luck: 75, type: "bowl", role: "Pacer" },
+        "Rashid Khan": { bat: 60, bowl: 96, luck: 92, type: "bowl", role: "Spinner, Leg Spin, Mystery Spin", },
+        "Yuzvendra Chahal": { bat: 5, bowl: 93, luck: 88, type: "bowl", role: "Spinner, Leg Spin", },
+        "Kuldeep Yadav": { bat: 10, bowl: 93, luck: 88, type: "bowl", role: "Spinner, Chinaman", },
+        "Ravi Bishnoi": { bat: 10, bowl: 88, luck: 85, type: "bowl", role: "Spinner, Leg Spin", },
+        "Varun Chakravarthy": { bat: 5, bowl: 89, luck: 82, type: "bowl", role: "Spinner, Mystery Spin", },
+        "Wanindu Hasaranga": { bat: 50, bowl: 90, luck: 85, type: "bowl", role: "Spinner, Leg Spin", },
+        "Maheesh Theekshana": { bat: 20, bowl: 87, luck: 80, type: "bowl", role: "Spinner, Mystery Spin", },
+        "Adam Zampa": { bat: 10, bowl: 87, luck: 80, type: "bowl", role: "Spinner, Leg Spin", },
+        "Mujeeb Ur Rahman": { bat: 20, bowl: 86, luck: 80, type: "bowl", role: "Spinner, Mystery Spin", },
+        "Noor Ahmad": { bat: 15, bowl: 87, luck: 85, type: "bowl", role: "Spinner, Chinaman", },
+        "Keshav Maharaj": { bat: 40, bowl: 85, luck: 80, type: "bowl", role: "Spinner, Left Arm Orth", },
+        "Adil Rashid": { bat: 30, bowl: 86, luck: 82, type: "bowl", role: "Spinner, Leg Spin", },
+        "Tabraiz Shamsi": { bat: 10, bowl: 85, luck: 80, type: "bowl", role: "Spinner, Chinaman", },
+        "Rahul Chahar": { bat: 20, bowl: 84, luck: 80, type: "bowl", role: "Spinner, Leg Spin", },
+        "Amit Mishra": { bat: 25, bowl: 83, luck: 85, type: "bowl", role: "Spinner, Leg Spin", },
+        "Piyush Chawla": { bat: 35, bowl: 85, luck: 88, type: "bowl", role: "Spinner, Leg Spin", },
+        "Karn Sharma": { bat: 30, bowl: 82, luck: 80, type: "bowl", role: "Spinner, Leg Spin", },
+        "Mayank Markande": { bat: 20, bowl: 83, luck: 80, type: "bowl", role: "Spinner, Leg Spin", },
+        "R Sai Kishore": { bat: 25, bowl: 85, luck: 82, type: "bowl", role: "Spinner, Left Arm Orth", },
+        "Suyash Sharma": { bat: 5, bowl: 84, luck: 80, type: "bowl", role: "Spinner, Mystery Spin", },
+        "Manimaran Siddharth": { bat: 10, bowl: 80, luck: 75, type: "bowl", role: "Spinner, Left Arm Orth", },
+        "Allah Ghazanfar": { bat: 10, bowl: 82, luck: 82, type: "bowl", role: "Spinner, Mystery Spin", },
+        "Digvesh Rathi": { bat: 5, bowl: 80, luck: 78, type: "bowl", role: "Spinner", },
+&nbsp;
+&nbsp;
+&nbsp;
+};
+&nbsp;
+const PLAYER_IMAGE_MAP = {
+&nbsp;
+&nbsp;
+      "David Warner": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRy2UoIz9RctCjtDw0iTDr9W8lq_jMqGo0JpQ&amp;s",
+      "Virat Kohli": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSXd7IOQ0NKyGMznUdvuNfPqT1PjyLLWs2PlA&amp;s",
+      "rohit sharma": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3sfdazCnce91FbLAu66M2aa49A2OJ_UfWRg&amp;s",
+      "rishabh pant": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR5UKPHZLy9Mb72EvFlbnmH6PA3ySNWbxvLWA&amp;s",
+      "kl rahul": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQs5YIL9kZU5kRl0nW4CMDXezaXSrn_7d1cWw&amp;s",
+      "jasprit bumrah": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSOhggyxRW4R8C5stRZeM6xF_-MLpKGeTTnNQ&amp;s",
+      "hardik pandya": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSMl97E5YCG_qhtODqspjhQbiVKdgkGSQoj2w&amp;s",
+      "axar patel": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZq-Wt00Pd8Olb3f8vzTE7ud9xeUv5yMcgsg&amp;s",
+      "rashid khan": "https://www.iplbetonline.in/wp-content/uploads/2023/04/218.png",
+      "heinrich klaasen": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiFL5rG_FgzbJjvdATUOQrhdsE90YPI4fuug&amp;s",
+      "sanju samson": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR8Xp0CvnGYY2QCwxVow7kvpP3ZTkzVus1MGg&amp;s",
+      "yashasvi jaiswal": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMMIlG4UCovEfziX_SI09qkf3_Cg2SX-P-Lg&amp;s",
+      "mitchell starc": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPGz1TkJbf1sCV4pLRxdmXi6-QqjDAV3EKbw&amp;s",
+      "nicholas pooran": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQttQw5G5G4LV07_JzAAlJwQYzTiJHDO-7JRQ&amp;s",
+      "yuzvendra chahal": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSl2t1XzBVcHqNBLVc1n75AaJd2-tcnk4g48g&amp;s",
+      "kuldeep yadav": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3BdPeWcBfg_ShlOT1BJcl1uhXwd6_jWxBoA&amp;s",
+      "sai sudharsan": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQYqNPZ_ROZnx8SiGAG9uWubwN7ghfjPq3XXA&amp;s",
+      "varun chakravarthy": "https://static.toiimg.com/photo/119129071.cms",
+      "t natarajan": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRqUl5j0TmK38vQvoxg9ngJVAUVhEzar1tT_w&amp;s",
+      "abhishek sharma": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSvUeLIbFDGe9Whp3BX3CSqQ93dQoeZubgwBw&amp;s",
+      "mohammed shami": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTnFzvB9NG74q7rS8MjSW_zD1pBRBat5YDHmw&amp;s",
+      "daryl mitchell": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQsC0r1IFYQLEPXhy2OtS1VJp07YA80CCcd8Q&amp;s",
+      "dewald brevis": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTQivnVww3TfhkuUmwYJZQuR6wroS0svAppA&amp;s",
+      "ms dhoni": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQlUHTyVfbyG3PgcyaRzLI_KE9HHqUqgrFIFQ&amp;s",
+      "suryakumar yadav": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHid9tiHpmtLTokHjhRy5N6vkVcxzL7thkeQ&amp;s",
+      "travis head": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdPCSKpkwcuZDMlFoiDm3R3BAo1EzRtNdiPg&amp;s",
+      "ravindra jadeja": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRI8Z-1QJiEVn2_eCbhrW5MyXhUJn9HE2XdAA&amp;s",
+      "trent boult": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQIoXfsx5jBlVAr1H3fGk0S_c-0MNn-r-4o9Q&amp;s",
+      "arshdeep singh": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz9QMCpjUJj5Smz5WS0If_WXhC-9F2-Tvs3w&amp;s",
+      "glenn maxwell": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTH8L43Zy6vc06DL4pDJKRxaazWyqeJFs_xdw&amp;s",
+      "sam curran": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR-X04hvyAKngMVDfBpYVahZeB58Rb4ryXO0A&amp;s",
+      "krunal pandya": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRRTGdJoU_Hofobj-hU3tpyPMAKg_jtq9Lg1A&amp;s",
+      "romario shepherd": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJvAy_9pMhWWvU7jvLjvq4IjAD_kluu7Kh2A&amp;s",
+      "aiden markram": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOajmONNd7d64dfVUFmUbVEsO3yPHHnAx8Yg&amp;s",
+      "liam livingstone": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTflymyT3ojb12YfLmIWYwvK7maoqsYvftyIw&amp;s",
+      "shivam dube": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRGsxQpnbZyU0mtKlvBgnhPErZiGHehmb4YuA&amp;s",
+      "quinton de kock": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS1husYcqQxzXbB2jYZctsHKUO1r5KYMUxyrA&amp;s",
+      "dhruv jurel": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZm_mMkVrBrfrY9bs0swEN5Td1hE-aRz9n2w&amp;s",
+      "jos buttler": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRJyXqCruiGYygsRkxwF7NIrT7IpAPR5fJJJA&amp;s",
+      "andre russell": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRiGYYt9ovNiRcFSjadP2AksRsd0Mdi1dNZDg&amp;s",
+      "ruturaj gaikwad": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSXGbBtm6R4GJT2j2ZxvROVEeV7UbrIuRDleA&amp;s",
+      "shubman gill": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRtakT_H1Gyp9KF85UHvLv0MjQbT0OXLJlsEQ&amp;s",
+      "shreyas iyer": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRO10-jV4zy9JtIxbWzRZiJagKzkYR4l507Cw&amp;s",
+      "tilak varma": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTfMM-hv47GDNhi-6WrbcBfD-AUAPy0qnjSnw&amp;s",
+      "devon conway": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREdCc6o0V15HYS4vv_HFww4fUehf5t9ByGxA&amp;s",
+      "devdatt padikal": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSAuY6qP02fFUlKZ4ld7Wrhm-alVVJeTcNv2A&amp;s",
+      "kane williamson": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRGpOxgmrjBEe7v76wwMov_YFuAoogFSrZ_zg&amp;s",
+      "will jacks": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR6J3WVvja_9EB2qJ8er90GqkEDTCGv5hQBag&amp;s",
+      "harry brook": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRAArvrYHQzYLSlOugAi6drdAg5IzIibCyjaw&amp;s",
+      "ibrahim zadran": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSS0O-R0JSfMt0maVI6v6OU1a0SSIj8ijeOnQ&amp;s",
+      "lockie ferguson": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQGQmTjuxXSYhQHZcRi9U8UlqMyYiYBLn2cBg&amp;s",
+      "josh hazlewood": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-4ZjUwjHrvhukWLmMNoM2P69feAJ9zck9uQ&amp;s",
+      "harshit rana": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQpcXQmpK-CbFtlnQnmCoN9FmPS3xbOGLwUDQ&amp;s",
+      "prasidh krishna": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOhgXERAAoBAuhwRRZf2wMWISXjnIYDlrEmA&amp;s",
+      "kagiso rabada": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxvidFiausg2Me1UfVNU7f1cx_jYsLdeUwaQ&amp;s",
+      "harshal patel": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFgJDXgf0In2PO3Ie9mO4_8VjqwwRkRP2e8Q&amp;s",
+      "pat cummins": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS9nkSiV6jtCApLRnOFSKUAUQspjV5hpJOdBQ&amp;s",
+      "matheesha pathirana": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR4TerGmA61_rrVaNBeBHejm5J60vzQs0rWTg&amp;s",
+      "mark wood": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT61NLgM2DT5tYUhLKRjLyylZzRbxc4wTb_3A&amp;s",
+      "mukesh kumar": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS8hgsxXLIMkdEMRyqIzCMlnwpGjG2nKV1hGw&amp;s",
+      "anrich nortje": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQp_INFjiNgN1e9CgcoGSYEoHR7d863BrAEkg&amp;s",
+      "tushar deshpande": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ2chrGKb_zLMRCjpQh2rSEG6AewNxP5L3k7Q&amp;s",
+      "sunil narine": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWsWXzcPF-5GJEEjgr9IaPPn-yCHMyZxCMqA&amp;s",
+      "wanindu hasaranga": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOd5ea0dPuQ2Piq3gCg0k2XdaF810mFPWFoA&amp;s",
+      "mujeeb ur rahman": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTC9WDInYus_x1b86moJX9kYdTW3Le84sDrWg&amp;s",
+      "rahmanullah gurbaz": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRW2tuWnal4q-leOBRU4aWfcngk1NWbY04XnQ&amp;s",
+      "noor ahmad": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT4Aw3GMm7PPUQOM4Z1csrE8n5rxcfLZfu5sg&amp;s",
+      "maheesh theekshana": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRprnzQmcBvOhfS1eqZHcporjcEYFWqQmVMnQ&amp;s",
+      "murugan ashwin": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZp4FDSxl5b3K9mouAdn5zJJ_cyrXQvhf0mg&amp;s",
+      "adam zampa": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQqVlUCngLKUeqaRirZaRWkeQIsEmHmoAIuqw&amp;s",
+      "mayank markande": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAR6Wt6xq1oPl5upF_8CiXxmc37xT-CisXLw&amp;s",
+      "ravi bishnoi": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQvLEQRAinM5V7CwTqzdau9AqiOC7erIisKw&amp;s",
+      "alex carey": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR3fx9oUbwobdrMkbA2eWpUwzRWazNT3Sk1ug&amp;s",
+      "dinesh karthik": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQ7EgmJkgCRpcfBrFV0CXGx6bIKjtk5wEeVQ&amp;s",
+      "jitesh sharma": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTjeHFwIBbAbF_tpPcXNUp0-5D1LOANzxLxWA&amp;s",
+      "washington sundar": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkWDcgskNJH3SvDpogZ-QXE7WQnstEvuk8Kg&amp;s",
+      "riyan parag": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTNQGzq26UBlFu_dPv--OOFgCiyHBGTnqBumw&amp;s",
+      "nitish rana": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJLQfDqFWetnMsl8WmFsRZhQBCLlDv7fiT1Q&amp;s",
+      "mitchell marsh": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSctxL2Fnj4DdMI8wf84B8Zku6tdXqBMs3lrw&amp;s",
+      "tim david": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFdb361FkQD3qyQTu2z9oqHQ7MJLXTKYuSsA&amp;s",
+      "cameron green": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1x3cvTR2n1ab-W6LhAwKcyUuHUuDMqzMiSw&amp;s",
+      "marcus stoinis": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS7TaJF3IIbU7FPkYCHT0j3LQGVrVhnzIDR7Q&amp;s",
+      "rinku singh": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQzbWiyOzr11AFN-yAzFYWzQmEu5F3JsRyRrw&amp;s",
+      "deepak hooda": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTF918ic4VnyxQvakJJsXT1OKmeBIuIkwKyhA&amp;s",
+      "rahul tewatia": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTeCWXJoDrKnXVVrV3IYBNhhrUwwBaOi_l5NA&amp;s",
+      "phil salt": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ6CRh_5YOiZaB_s-OO5w1z5AvBNEM0X-qDDw&amp;s",
+      "shahrukh khan": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR8Xp0CvnGYY2QCwxVow7kvpP3ZTkzVus1MGg&amp;s",
+      "Faf du Plessis": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRuw5WAznke_M1y83XWQl3WyTpj8mmvquREPA&amp;s",
+      "David Miller": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZzfUcZmOT3vo7ucCn8zdlh3FTFcB0gs_t8w&amp;s",
+      "Shimron Hetmyer": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHPHEGd-TGdia5MOHN8DEeNoQm5g4cMpx9SQ&amp;s",
+      "Jake Fraser-McGurk": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHbxIFZAqNHXoUfusHxX38_9EPuS5f4V_y6w&amp;s",
+      "Shikhar Dhawan": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTmSJKeitXBUIzCdNM51xg6URHrI3QbqOijrw&amp;s",
+      "Ajinkya Rahane": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSOalqxPGHCV7hgvZXyVQB4xOHofBssMM1QWA&amp;s",
+      "Prithvi Shaw": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQO8FOcrG-t8xbjHLMkPJd2Z3PKYkD51LcuaQ&amp;s",
+      "Venkatesh Iyer": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxQXScapO97PkWzl-KejLhLg2U6BsTNrRfRA&amp;s",
+      "Rajat Patidar": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJtqyJBHfsL7M4Vn9pthbqPEoSEPHP7IcTXg&amp;s",
+      "Manish Pandey": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTVwDd6V2GJLNk8EElhqC_Yj-W1DJ6130r64A&amp;s",
+      "Jofra Archer": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTo8gIuGKKIp3GOCRLEKfTeeWCn7c3FiwjUxQ&amp;s",
+      "Gerald Coetzee": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTB6jCTyyHld0Ac-GnphqAk9h-MgYs6y3OoDQ&amp;s",
+      "Marco Jansen": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTy_tiNO9KkLrz_axRUXa-4DGdut8N_5nWi-Q&amp;s",
+      "Mustafizur Rahman": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQOlM0BXEu-szyb97Gj6ORu1DfDYIosi_BCUg&amp;s",
+      "Fazalhaq Farooqi": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTlD694z3N59mxkGYeLAM6YTJFHHvBNvU3ntQ&amp;s",
+      "Mohammed Siraj": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSVAwAb_htAQ9WCy0gaJKmQJiPluMal9hNwLw&amp;s",
+      "Deepak Chahar": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHSk-8Xek9lTIVSC9tslRP0_Gxt6tU2QvEbg&amp;s",
+      "Shardul Thakur": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHQBozbzAgGAzQ5JDOLRcr6YQkXoWM1eEyQg&amp;s",
+      "Bhuvneshwar Kumar": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQT6Ikzu_k3_jaV12gy2td03yTJFJanJcNn-A&amp;s",
+      "Mohit Sharma": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQt9Q8umC9f5_f-8YyvFlqNxNZpKiQ00DqHnQ&amp;s",
+      "Khaleel Ahmed": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPGM9mnxrIQvVNL5T5BJ5H0r1FLqCX2_56SA&amp;s",
+      "Mitchell Santner": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSyCFUEjnNWNYhNQWt2pVY-nraaeT7Xp5CLDw&amp;s",
+      "Ravichandran Ashwin": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTP-_GveSb4AACOwVRgOXYTISPvlt4XFaeNlg&amp;s",
+      "Rahul Chahar": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlgntjI0Wv5sx8A2bzstHCl7wMJW6pHv5tkw&amp;s",
+      "R Sai Kishore": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSyhgmmkhP8CIvTQRT-WwI-k1PVHzm1usIwHw&amp;s",
+      "Vijay Shankar": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRa0X4bPB_8GWQh2bnPVKLjLhMnCvuGpx0jUw&amp;s",
+      "Shahbaz Ahmed": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR_A8dTo3ziPjrxTsNrnMOdA0lIg1mKuQHIhg&amp;s",
+      "Moeen Ali": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRnblRwkKMZo2eRojywZhyIznpY6h-ct0LFog&amp;s",
+      "Rachin Ravindra": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcScrUYzDrJV6lwAh-h9ZKzBF72Dh-apAivglg&amp;s",
+      "Azmatullah Omarzai": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSI_vHDCuM1AWo_zEDwUbc_sG2I-4mJDlNgbw&amp;s",
+      "Mohammad Nabi": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRgPYEEBo2iJrQeUxClBQIq8ZA0cr6AryKh3g&amp;s",
+      "Jason Holder": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT949IOng4bWbSkMePYOjMBXKbOQKYkVsm95w&amp;s",
+      "Chris Woakes": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSdPCTRMrjZ4gtWa6kx7mhsUxOM_IXsDPQsNg&amp;s",
+      "Ishan Kishan": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRvI17T3mE31eNA35OSyvuvIVvtGLjlOYFLGw&amp;s",
+      "Wriddhiman Saha": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQLxziLIljwF5qLn-CsUtL1k5MFCOoz_fkL_Q&amp;s",
+      "Tristan Stubbs": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgVBnKUGvBQjHnNvaw_A9lKO7c6MwP2EqHlQ&amp;s",
+      "Josh Inglis": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ96_gVuW8JTbxirRPH9mVAjB59jbtQRt6UtQ&amp;s",
+};
+&nbsp;
+const NORMALIZED_IMAGE_MAP = {};
+Object.keys(PLAYER_IMAGE_MAP).forEach((k) =&gt; {
+  NORMALIZED_IMAGE_MAP[k.toLowerCase()] = PLAYER_IMAGE_MAP[k];
+});
+&nbsp;
+const NORMALIZED_PLAYER_DB = {};
+Object.keys(PLAYER_DATABASE).forEach((k) =&gt; {
+  NORMALIZED_PLAYER_DB[k.toLowerCase()] = PLAYER_DATABASE[k];
+});
+&nbsp;
+<span class="missing-if-branch" title="else path not taken" >E</span>if (typeof module !== "undefined") {
+  module.exports = {
+    PLAYER_DATABASE,
+    PLAYER_IMAGE_MAP,
+    NORMALIZED_IMAGE_MAP,
+    NORMALIZED_PLAYER_DB,
+  };
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-02-15T11:43:35.554Z
+            </div>
+        <script src="../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../sorter.js"></script>
+        <script src="../block-navigation.js"></script>
+    </body>
+</html>
+    

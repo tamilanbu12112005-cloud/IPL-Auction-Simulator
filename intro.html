@@ -3,12 +3,13 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IPL Mega Auction 2025 | Intro</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700;900&family=Teko:wght@400;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="intro-styles.css">
 
     <style>
         /* =========================================
@@ -295,67 +296,14 @@
     </style>
 </head>
 
-<body style="background-color: #0b0c15; margin: 0; overflow: hidden;">
+<body class="intro-body">
 
-    <div id="introOverlay">
-        <div class="spotlight-bg"></div>
-        <div class="intro-content" id="introContent">
-            <div class="broken-text">
-                <span style="--tx:-200px; --ty:-300px; --r:-120deg">I</span>
-                <span style="--tx:-100px; --ty:200px; --r:-45deg">P</span>
-                <span style="--tx:-150px; --ty:-100px; --r:90deg">L</span>
-                &nbsp;
-                <span style="--tx:50px; --ty:350px; --r:180deg">A</span>
-                <span style="--tx:100px; --ty:-300px; --r:-90deg">U</span>
-                <span style="--tx:180px; --ty:200px; --r:45deg">C</span>
-                <span style="--tx:250px; --ty:-150px; --r:-60deg">T</span>
-                <span style="--tx:200px; --ty:250px; --r:130deg">I</span>
-                <span style="--tx:300px; --ty:-50px; --r:-15deg">O</span>
-                <span style="--tx:350px; --ty:150px; --r:80deg">N</span>
-            </div>
-            <div class="shockwave"></div>
-            <div class="gavel-wrapper">
-                <svg viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:100%;">
-                    <defs>
-                        <linearGradient id="woodGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:#3E2723" />
-                            <stop offset="40%" style="stop-color:#5D4037" />
-                            <stop offset="60%" style="stop-color:#8D6E63" />
-                            <stop offset="100%" style="stop-color:#3E2723" />
-                        </linearGradient>
-                        <linearGradient id="goldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style="stop-color:#FDB931" />
-                            <stop offset="30%" style="stop-color:#FFFFE0" />
-                            <stop offset="60%" style="stop-color:#D4AF37" />
-                            <stop offset="100%" style="stop-color:#8A6E2F" />
-                        </linearGradient>
-                    </defs>
-                    <rect x="90" y="80" width="20" height="200" rx="4" fill="url(#woodGradient)" />
-                    <rect x="90" y="260" width="20" height="10" fill="rgba(0,0,0,0.3)" />
-                    <g transform="translate(0, 0)">
-                        <rect x="20" y="20" width="160" height="70" rx="15" fill="url(#woodGradient)" stroke="#1a1a1a"
-                            stroke-width="1" />
-                        <rect x="10" y="10" width="20" height="90" rx="2" fill="url(#goldGradient)" />
-                        <rect x="170" y="10" width="20" height="90" rx="2" fill="url(#goldGradient)" />
-                    </g>
-                </svg>
-            </div>
-            <div class="sold-stamp">SOLD!</div>
-            <div id="sparkContainer"
-                style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
-        </div>
-    </div>
+    <div id="introOverlay" class="intro-overlay"></div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // IF LOGGED IN - Auth.js will handle redirect/reconnect
-            if (localStorage.getItem('token')) {
-                // Let auth.js handle it
-                return;
-            }
-
             // Intro Animation Timing Scripts
             const introContent = document.getElementById('introContent');
             const sparkContainer = document.getElementById('sparkContainer');
@@ -365,6 +313,18 @@
                 if (introContent) introContent.classList.add('shake-active');
                 createExplosion();
             }, 1150);
+
+            // IF LOGGED IN - Auth.js will normally handle redirect
+            // But we add a safety fallback here to prevent getting stuck
+            if (localStorage.getItem('token')) {
+                setTimeout(() => {
+                    if (!window.location.pathname.includes('dashboard.html')) {
+                        console.log("⛑️ Intro safety redirect triggered");
+                        window.location.href = 'dashboard.html';
+                    }
+                }, 4000);
+                return;
+            }
 
             function createExplosion() {
                 const particleCount = 40;
@@ -383,11 +343,9 @@
                     spark.style.setProperty('--sx', `${tx}px`);
                     spark.style.setProperty('--sy', `${ty}px`);
                     spark.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-
                     if (sparkContainer) sparkContainer.appendChild(spark);
                 }
             }
-
             // Open Login Popup after animation
             setTimeout(() => {
                 // Clear the intro elements to show a blank background
@@ -401,7 +359,6 @@
                     }
                 }, 100);
             }, 5000); // 5 seconds duration
-
             // 'R' to Restart Intro
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'r' || e.key === 'R') {
@@ -409,156 +366,6 @@
                 }
             });
         });
-
-        // NEW: Check for active game and show "Continue" button
-        function checkForActiveGame() {
-            const playerId = sessionStorage.getItem("ipl_auction_player_id") || "guest_" + Date.now();
-
-            // Create temp socket to check for active room
-            const tempSocket = io({
-                transports: ["websocket"],
-                auth: { playerId: playerId }
-            });
-
-            tempSocket.on("connect", () => {
-                tempSocket.emit("check_active_room");
-            });
-
-            tempSocket.on("active_room_found", (data) => {
-                console.log("🎮 Active game found!", data);
-                tempSocket.disconnect();
-
-                // Show "Continue Your Game" button
-                showContinueGameButton(data);
-            });
-
-            tempSocket.on("no_active_room", () => {
-                console.log("ℹ️ No active game");
-                tempSocket.disconnect();
-                // Go to dashboard normally
-                window.location.href = "dashboard.html";
-            });
-
-            // Timeout fallback
-            setTimeout(() => {
-                if (tempSocket.connected) {
-                    tempSocket.disconnect();
-                    window.location.href = "dashboard.html";
-                }
-            }, 3000);
-        }
-
-        // Show Continue Game Button
-        function showContinueGameButton(gameData) {
-            // Hide intro animation
-            const introContent = document.getElementById('introContent');
-            if (introContent) introContent.style.display = 'none';
-
-            // Create Continue Game UI
-            const continueUI = document.createElement('div');
-            continueUI.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                z-index: 1000;
-                text-align: center;
-                background: linear-gradient(135deg, #1a2342 0%, #2d3561 100%);
-                padding: 40px;
-                border-radius: 20px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-                border: 2px solid #FFD700;
-            `;
-
-            continueUI.innerHTML = `
-                <h1 style="color: #FFD700; font-family: 'Teko', sans-serif; font-size: 3rem; margin: 0 0 20px 0; text-shadow: 0 0 20px rgba(255,215,0,0.5);">
-                    🎮 GAME IN PROGRESS
-                </h1>
-                <p style="color: #fff; font-size: 1.2rem; margin: 10px 0;">
-                    You have an ongoing auction!
-                </p>
-                <p style="color: #FFD700; font-size: 1.5rem; font-weight: bold; margin: 10px 0;">
-                    Team: ${gameData.teamName}
-                </p>
-                <p style="color: #aaa; font-size: 0.9rem; margin: 10px 0;">
-                    Room ID: ${gameData.roomId}
-                </p>
-                <div style="margin-top: 30px; display: flex; gap: 20px; justify-content: center;">
-                    <button id="continueGameBtn" style="
-                        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-                        color: #000;
-                        border: none;
-                        padding: 15px 40px;
-                        font-size: 1.2rem;
-                        font-weight: bold;
-                        border-radius: 10px;
-                        cursor: pointer;
-                        box-shadow: 0 5px 20px rgba(255,215,0,0.4);
-                        transition: all 0.3s;
-                        font-family: 'Rajdhani', sans-serif;
-                    ">
-                        🚀 CONTINUE GAME
-                    </button>
-                    <button id="newGameBtn" style="
-                        background: transparent;
-                        color: #fff;
-                        border: 2px solid #666;
-                        padding: 15px 40px;
-                        font-size: 1.2rem;
-                        font-weight: bold;
-                        border-radius: 10px;
-                        cursor: pointer;
-                        transition: all 0.3s;
-                        font-family: 'Rajdhani', sans-serif;
-                    ">
-                        NEW GAME
-                    </button>
-                </div>
-            `;
-
-            document.body.appendChild(continueUI);
-
-            // Continue Game Button
-            document.getElementById('continueGameBtn').addEventListener('click', () => {
-                // Store room info for auto-join
-                localStorage.setItem("auto_reconnect_room", gameData.roomId);
-                localStorage.setItem("auto_reconnect_team", gameData.teamKey);
-
-                // Redirect based on auction state
-                if (gameData.auctionState === "SQUAD_SELECTION" || gameData.auctionState === "RESULTS") {
-                    window.location.href = "play.html";
-                } else {
-                    window.location.href = "ipl.html";
-                }
-            });
-
-            // New Game Button
-            document.getElementById('newGameBtn').addEventListener('click', () => {
-                window.location.href = "dashboard.html";
-            });
-
-            // Hover effects
-            const continueBtn = document.getElementById('continueGameBtn');
-            const newBtn = document.getElementById('newGameBtn');
-
-            continueBtn.addEventListener('mouseenter', () => {
-                continueBtn.style.transform = 'scale(1.05)';
-                continueBtn.style.boxShadow = '0 8px 30px rgba(255,215,0,0.6)';
-            });
-            continueBtn.addEventListener('mouseleave', () => {
-                continueBtn.style.transform = 'scale(1)';
-                continueBtn.style.boxShadow = '0 5px 20px rgba(255,215,0,0.4)';
-            });
-
-            newBtn.addEventListener('mouseenter', () => {
-                newBtn.style.borderColor = '#FFD700';
-                newBtn.style.color = '#FFD700';
-            });
-            newBtn.addEventListener('mouseleave', () => {
-                newBtn.style.borderColor = '#666';
-                newBtn.style.color = '#fff';
-            });
-        }
     </script>
 </body>
 

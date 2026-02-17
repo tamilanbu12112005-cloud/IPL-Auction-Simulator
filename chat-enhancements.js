@@ -72,8 +72,13 @@ class EnhancedChatManager {
         // Add emoji toggle button
         const emojiBtn = document.createElement('button');
         emojiBtn.className = 'emoji-toggle-btn';
-        emojiBtn.innerHTML = '😀';
-        emojiBtn.onclick = () => this.toggleEmojiPicker();
+        emojiBtn.innerHTML = '✨';
+        emojiBtn.title = 'Emojis & Quick Chat';
+        emojiBtn.dataset.bsToggle = "tooltip";
+        emojiBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.toggleEmojiPicker();
+        };
         wrapper.insertBefore(emojiBtn, chatInput);
         
         // Add typing indicator
@@ -82,20 +87,22 @@ class EnhancedChatManager {
         typingIndicator.className = 'typing-indicator';
         typingIndicator.innerHTML = '<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span> Someone is typing...';
         
-        const chatMessages = document.getElementById('chatMessages');
-        if (chatMessages) {
-            chatMessages.parentNode.insertBefore(typingIndicator, chatMessages.nextSibling);
+        // Find chat panel and insert typing indicator above the input area
+        const chatPanel = document.querySelector('.chat-panel');
+        const inputContainer = document.querySelector('.chat-input-container');
+        if (chatPanel && inputContainer) {
+            chatPanel.insertBefore(typingIndicator, inputContainer);
         }
         
         // Typing detection
         let typingTimeout;
         chatInput.addEventListener('input', () => {
-            if (typeof socket !== 'undefined') {
-                socket.emit('typing_start');
+            if (typeof socket !== 'undefined' && socket.connected) {
+                socket.emit('typing_start', { userName: typeof myPlayerName !== 'undefined' ? myPlayerName : 'Someone' });
                 clearTimeout(typingTimeout);
                 typingTimeout = setTimeout(() => {
                     socket.emit('typing_stop');
-                }, 1000);
+                }, 2000);
             }
         });
     }

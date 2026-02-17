@@ -67,16 +67,15 @@ const userSchema = new mongoose.Schema({
 // WARNING: Storing passwords in plain text is NOT secure.
 // This change was made per user request to see exact passwords in the database.
 
-// Pre-save hook REMOVED to stop hashing
-// userSchema.pre('save', async function() {
-//     if (!this.isModified('password')) return;
-//     this.password = await bcrypt.hash(this.password, 10);
-// });
+// Secure password hashing
+userSchema.pre('save', async function() {
+    if (!this.isModified('password')) return;
+    this.password = await bcrypt.hash(this.password, 10);
+});
 
-// Compare password method - CHANGED to plain text comparison
+// Compare password method - using bcrypt for security
 userSchema.methods.comparePassword = async function(candidatePassword) {
-    // Direct string comparison
-    return candidatePassword === this.password;
+    return await bcrypt.compare(candidatePassword, this.password);
 };
 
 module.exports = mongoose.model('User', userSchema);

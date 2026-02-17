@@ -44,9 +44,18 @@ const RoomSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     lastActivity: { type: Date, default: Date.now },
     completedAt: { type: Date }, // Set when auction/tournament completes
+    chatHistory: [{
+        playerName: String,
+        message: String,
+        timestamp: { type: Number, default: Date.now },
+        id: String
+    }],
+    // Trade Data Persistence
+    tradeRequests: { type: [Object], default: [] },
+    tradeHistory: { type: [Object], default: [] }
 });
 
-// Auto-delete completed rooms after 12 hours (43200 seconds)
-RoomSchema.index({ "completedAt": 1 }, { expireAfterSeconds: 43200 });
+// Auto-delete completed rooms after 5 days (432000 seconds)
+RoomSchema.index({ "completedAt": 1 }, { expireAfterSeconds: 432000 });
 
 module.exports = mongoose.model('Room', RoomSchema);

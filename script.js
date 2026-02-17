@@ -3,12 +3,10 @@
 // ======================================================
 let myPersistentId = localStorage.getItem("ipl_auction_player_id");
 
+// ✨ BOOTSTRAP: Attempt to get or create identity
 if (!myPersistentId) {
-  myPersistentId = localStorage.getItem("ipl_auction_player_id");
-  if (!myPersistentId) {
     myPersistentId = "user_" + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
     localStorage.setItem("ipl_auction_player_id", myPersistentId);
-  }
 }
 
 // Player Name Storage
@@ -33,6 +31,7 @@ function getRoleFullName(roleKey) {
     ar: "All-rounder",
     allrounder: "All-rounder",
   };
+  if (!roleKey) return "Unknown";
   return roleMap[roleKey.toLowerCase()] || roleKey;
 }
 
@@ -44,6 +43,13 @@ function getPlayerTypeFullName(playerType) {
 
 // Initialize Sound Toggle
 document.addEventListener("DOMContentLoaded", () => {
+  // 1. Show lobby ASAP to prevent blank page
+  const lobby = document.getElementById("lobbyScreen");
+  if (lobby && !myRoomId) {
+    lobby.style.display = "flex";
+    console.log("🚀 Lobby screen shown.");
+  }
+
   try {
     // Sync User Identity from Auth
     const u = localStorage.getItem("user");
@@ -64,66 +70,144 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("Failed to parse user data:", err);
   }
 
-  loadVoices();
-  if (window.speechSynthesis.onvoiceschanged !== undefined) {
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+  // Initialize Speech Synthesis
+  if (typeof loadVoices === "function") {
+    loadVoices();
+    if (window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
   }
 
   // Initialize audio button when it becomes available
   initializeSoundButton();
 
-  // Show lobby screen by default
-  const lobby = document.getElementById("lobbyScreen");
-  if (lobby) {
-    lobby.style.setProperty("display", "flex", "important");
-  }
+  // Password Visibility Toggle
+  document.querySelectorAll(".toggle-pass").forEach((btn) => {
+    btn.onclick = () => {
+      const targetId = btn.dataset.target;
+      const input = document.getElementById(targetId);
+      if (input) {
+        if (input.type === "password") {
+          input.type = "text";
+          btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
+        } else {
+          input.type = "password";
+          btn.innerHTML = '<i class="bi bi-eye"></i>';
+        }
+      }
+    };
+  });
 
   // ✨ NEW: Auto-reconnect feature
-  checkAutoReconnect();
+
+  // Attach Create/Join Listeners
+  attachCreateRoomListener();
+  attachJoinRoomListener();
 });
 
 // NEW: Check for auto-reconnect and join room automatically
-function checkAutoReconnect() {
-  const autoRoomId = localStorage.getItem("auto_reconnect_room");
-  const autoTeamKey = localStorage.getItem("auto_reconnect_team");
-  
-  if (autoRoomId && autoTeamKey) {
-    console.log("🔄 Auto-reconnecting to room:", autoRoomId);
-    
-    // Clear the flags
-    localStorage.removeItem("auto_reconnect_room");
-    localStorage.removeItem("auto_reconnect_team");
-    
-    // Wait for socket to connect
-    if (socket.connected) {
-      performAutoJoin(autoRoomId);
-    } else {
-      socket.on("connect", () => {
-        performAutoJoin(autoRoomId);
-      });
+
+// Function to attach listener for Create Room button
+function attachCreateRoomListener() {
+  const btn = document.getElementById("doCreateBtn");
+  if (!btn) return;
+
+  // Use a flag to prevent double attachment
+  if (btn.dataset.listenerAttached) return;
+  btn.dataset.listenerAttached = "true";
+
+  btn.addEventListener("click", () => {
+    if (!socket.connected) {
+      const lobbyError = document.getElementById("lobbyError");
+      if (lobbyError) lobbyError.innerText = "Connection lost. Reconnecting...";
+      return;
     }
-  }
+
+    const roomIdInput = document.getElementById("createRoomId");
+    const passInput = document.getElementById("createPass");
+
+    if (!roomIdInput || !passInput) return;
+
+    const roomId = roomIdInput.value.trim().toUpperCase();
+    const password = passInput.value.trim();
+    const lobbyError = document.getElementById("lobbyError");
+
+    if (!roomId || password.length !== 4) {
+      if (lobbyError)
+        lobbyError.innerText = "Invalid Room ID (Any) or Password (4 Digits)";
+      return;
+    }
+
+    localStorage.setItem("ipl_auction_player_name", myPlayerName);
+    const playerName = myPlayerName || localStorage.getItem("userName") || "";
+
+    socket.emit("create_room", {
+      roomId,
+      password,
+      config: {
+        budget: parseInt(
+          document.getElementById("budget")?.value || 1000000000,
+        ),
+      },
+      playerName: playerName || "", // Ensure it's not undefined
+    }, (response) => {
+       // Optional callback if server supports it, but we rely on events
+       console.log("Create room emit acknowledged", response);
+    });
+
+    if (lobbyError) {
+      lobbyError.innerHTML = '<div class="spinner-border spinner-border-sm text-warning" role="status"></div> Creating room...';
+    }
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-gear-fill spin"></i> INITIALIZING...';
+  });
 }
 
-// Perform the actual auto-join
-function performAutoJoin(roomId) {
-  // Emit join_room without password (server will recognize the player)
-  const playerName = localStorage.getItem("ipl_auction_player_name") || 
-                     localStorage.getItem("userName") || "";
-  
-  socket.emit("join_room", {
-    roomId: roomId,
-    password: "", // Server will allow reconnect based on playerId
-    playerName: playerName
+// Function to attach listener for Join Room button
+function attachJoinRoomListener() {
+  const btn = document.getElementById("doJoinBtn");
+  if (!btn) return;
+
+  // Use a flag to prevent double attachment
+  if (btn.dataset.listenerAttached) return;
+  btn.dataset.listenerAttached = "true";
+
+  btn.addEventListener("click", () => {
+    if (!socket.connected) {
+      const lobbyError = document.getElementById("lobbyError");
+      if (lobbyError) lobbyError.innerText = "Connection lost. Reconnecting...";
+      return;
+    }
+
+    const roomIdInput = document.getElementById("joinRoomId");
+    const passInput = document.getElementById("joinPass");
+
+    if (!roomIdInput || !passInput) return;
+
+    const roomId = roomIdInput.value.trim().toUpperCase();
+    const password = passInput.value.trim();
+    const lobbyError = document.getElementById("lobbyError");
+
+    if (!roomId || password.length !== 4) {
+      if (lobbyError) lobbyError.innerText = "Invalid Room ID or Password";
+      return;
+    }
+
+    localStorage.setItem("ipl_auction_player_name", myPlayerName);
+    const playerName = myPlayerName || localStorage.getItem("userName") || "";
+
+    socket.emit("join_room", {
+      roomId,
+      password,
+      playerName,
+    });
+
+    if (lobbyError) {
+      lobbyError.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"></div> Joining room...';
+    }
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-door-open-fill"></i> JOINING...';
   });
-  
-  myRoomId = roomId;
-  
-  // Show loading message
-  if (lobbyError) {
-    lobbyError.innerText = "🔄 Reconnecting to your auction...";
-    lobbyError.style.color = "#4CAF50";
-  }
 }
 
 // Function to initialize sound button (can be called multiple times safely)
@@ -158,7 +242,10 @@ function initializeSoundButton() {
 }
 
 function loadVoices() {
+  if (!window.speechSynthesis) return;
   const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return;
+  
   synthesisVoice =
     voices.find((v) => v.name.includes("Google US English")) ||
     voices.find((v) => v.name.includes("Microsoft Zira")) ||
@@ -308,16 +395,29 @@ function playBidSound() {
 // 🔧 1. ROBUST SOCKET INITIALIZATION
 // ======================================================
 
-const socket = io({
-  transports: ["websocket"],
-  reconnection: true,
-  reconnectionAttempts: Infinity,
-  reconnectionDelay: 2000,
-  timeout: 20000,
-  auth: {
-    playerId: myPersistentId,
-  },
-});
+// Initial safe socket check
+let socket;
+if (typeof io !== "undefined") {
+  socket = io({
+    transports: ["polling", "websocket"],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 2000,
+    timeout: 20000,
+    auth: {
+      playerId: myPersistentId,
+    },
+  });
+} else {
+  console.error("❌ Socket.IO library (io) not found! Page may be broken.");
+  // Provide a dummy socket object to prevent downstream crashes
+  socket = {
+    on: () => {},
+    emit: () => {},
+    off: () => {},
+    connected: false,
+  };
+}
 window.socket = socket;
 
 const lobbyScreen = document.getElementById("lobbyScreen");
@@ -325,7 +425,7 @@ const gameContainer = document.getElementById("gameContainer");
 const lobbyError = document.getElementById("lobbyError");
 
 // --- GLOBAL VARIABLES ---
-let myRoomId = null;
+var myRoomId = null;
 var mySelectedTeamKey = null; // Defined with var to be accessible via window.mySelectedTeamKey
 let isAdmin = false;
 let saleProcessing = false;
@@ -365,6 +465,27 @@ setInterval(() => {
 socket.on("connect", () => {
   socketAlive = true;
   if (lobbyError) lobbyError.innerText = "";
+
+  // 🚀 RESUME CHECK
+  const urlParams = new URLSearchParams(window.location.search);
+  const action = urlParams.get("action");
+  const rid = urlParams.get("roomId");
+
+  if (action === "resume" && rid) {
+    console.log("🚀 Resuming Game:", rid);
+    if (lobbyError) lobbyError.innerText = "Resuming Session...";
+    const user = JSON.parse(localStorage.getItem("user"));
+    socket.emit("resume_game", {
+      roomId: rid,
+      email: user?.email,
+      playerId: localStorage.getItem("ipl_auction_player_id"),
+    });
+  }
+});
+
+socket.on("resume_failed", (msg) => {
+  alert("Resume Failed: " + msg);
+  window.location.href = "dashboard.html";
 });
 
 socket.on("disconnect", (reason) => {
@@ -404,224 +525,12 @@ if (!window._beforeUnloadBound) {
 // ======================================================
 // 📊 PLAYER DATABASE (RESTORED)
 // ======================================================
-const PLAYER_DATABASE = {
-  // --- MARQUEE & TOP BATTERS ---
-  "Virat Kohli": { bat: 98, bowl: 10, luck: 90, type: "bat", role: "Opener, Anchor", },
-  "Rohit Sharma": { bat: 95, bowl: 15, luck: 92, type: "bat", role: "Opener, Captain", },
-  "Shubman Gill": { bat: 92, bowl: 5, luck: 88, type: "bat", role: "Opener, Captain", },
-  "Suryakumar Yadav": { bat: 96, bowl: 5, luck: 85, type: "bat", role: "Middle Order, 360, Power Hitter", },
-  "Travis Head": { bat: 94, bowl: 20, luck: 88, type: "bat", role: "Opener, Power Hitter", },
-  "Yashasvi Jaiswal": { bat: 90, bowl: 10, luck: 85, type: "bat", role: "Opener, Powerplay Specialist", },
-  "Ruturaj Gaikwad": { bat: 89, bowl: 5, luck: 88, type: "bat", role: "Opener, Anchor", },
-  "Rinku Singh": { bat: 90, bowl: 5, luck: 95, type: "bat", role: "Finisher, Power Hitter", },
-  "Shreyas Iyer": { bat: 88, bowl: 10, luck: 85, type: "bat", role: "Middle Order, Captain, Spin Basher", },
-  "Faf du Plessis": { bat: 88, bowl: 5, luck: 82, type: "bat", role: "Opener, Captain", },
-  "David Warner": { bat: 89, bowl: 5, luck: 78, type: "bat", role: "Opener" },
 
-  // --- FOREIGN BATTERS ---
-  "David Miller": { bat: 89, bowl: 5, luck: 90, type: "bat", role: "Finisher, Power Hitter", },
-  "Harry Brook": { bat: 86, bowl: 10, luck: 75, type: "bat", role: "Middle Order, Power Hitter", },
-  "Kane Williamson": { bat: 88, bowl: 15, luck: 82, type: "bat", role: "Middle Order, Anchor, Captain", },
-  "Shimron Hetmyer": { bat: 85, bowl: 5, luck: 85, type: "bat", role: "Finisher, Power Hitter", },
-  "Rovman Powell": { bat: 82, bowl: 15, luck: 80, type: "bat", role: "Finisher, Power Hitter", },
-  "Steve Smith": { bat: 86, bowl: 10, luck: 75, type: "bat", role: "Middle Order, Anchor", },
-  "Devon Conway": { bat: 89, bowl: 5, luck: 85, type: "bat", role: "Opener, Anchor", },
-  "Jake Fraser-McGurk": { bat: 88, bowl: 5, luck: 88, type: "bat", role: "Opener, Power Hitter", },
-  "Dewald Brevis": { bat: 80, bowl: 20, luck: 75, type: "bat", role: "Middle Order, Power Hitter", },
-  "Tim David": { bat: 86, bowl: 10, luck: 85, type: "bat", role: "Finisher, Power Hitter", },
-  "Finn Allen": { bat: 83, bowl: 5, luck: 75, type: "bat", role: "Opener, Power Hitter", },
-  "Rilee Rossouw": { bat: 84, bowl: 5, luck: 70, type: "bat", role: "Top Order, Power Hitter", },
-  "Jason Roy": { bat: 85, bowl: 5, luck: 78, type: "bat", role: "Opener, Power Hitter", },
+// PLAYER_DATABASE is now centrally managed in player-database.js
+// Player data is now centrally managed in player-database.js
+const PLAYER_DATA_CLEANUP = true;
 
-  // --- INDIAN BATTERS ---
-  "Sai Sudharsan": { bat: 88, bowl: 5, luck: 85, type: "bat", role: "Middle Order, Anchor", },
-  "Tilak Varma": { bat: 87, bowl: 15, luck: 85, type: "bat", role: "Middle Order, Finisher", },
-  "Shikhar Dhawan": { bat: 84, bowl: 5, luck: 80, type: "bat", role: "Opener, Anchor", },
-  "Ajinkya Rahane": { bat: 80, bowl: 5, luck: 75, type: "bat", role: "Top Order, Anchor", },
-  "Prithvi Shaw": { bat: 82, bowl: 5, luck: 70, type: "bat", role: "Opener, Powerplay Specialist", },
-  "Rajat Patidar": { bat: 85, bowl: 5, luck: 82, type: "bat", role: "Middle Order, Spin Basher", },
-  "Rahul Tripathi": { bat: 81, bowl: 5, luck: 75, type: "bat", role: "Top Order, Aggressor", },
-  "Shivam Dube": { bat: 88, bowl: 40, luck: 85, type: "bat", role: "Finisher, Spin Basher", },
-  "Manish Pandey": { bat: 78, bowl: 5, luck: 70, type: "bat", role: "Middle Order, Anchor", },
-  "Devdutt Padikkal": { bat: 80, bowl: 5, luck: 75, type: "bat", role: "Top Order", },
-  "Abhishek Sharma": { bat: 89, bowl: 50, luck: 85, type: "ar", role: "Opener, Power Hitter", },
-
-  // --- DOMESTIC / UNCAPPED BATTERS ---
-  "Sameer Rizvi": { bat: 78, bowl: 10, luck: 75, type: "bat", role: "Finisher", },
-  "Angkrish Raghuvanshi": { bat: 80, bowl: 10, luck: 78, type: "bat", role: "Top Order", },
-  "Ashutosh Sharma": { bat: 84, bowl: 5, luck: 88, type: "bat", role: "Finisher", },
-  "Shashank Singh": { bat: 85, bowl: 10, luck: 88, type: "bat", role: "Finisher", },
-  "Nehal Wadhera": { bat: 82, bowl: 15, luck: 80, type: "bat", role: "Middle Order, Finisher", },
-  "Naman Dhir": { bat: 78, bowl: 40, luck: 75, type: "bat", role: "Middle Order", },
-  "Ayush Badoni": { bat: 80, bowl: 10, luck: 80, type: "bat", role: "Finisher", },
-  "Yash Dhull": { bat: 76, bowl: 5, luck: 75, type: "bat", role: "Top Order" },
-  "Sarfaraz Khan": { bat: 82, bowl: 5, luck: 75, type: "bat", role: "Middle Order", },
-  "Abdul Samad": { bat: 80, bowl: 15, luck: 80, type: "bat", role: "Finisher" },
-  "Vaibhav Suryavanshi": { bat: 76, bowl: 10, luck: 85, type: "bat", role: "Top Order", },
-  "Priyansh Arya": { bat: 80, bowl: 5, luck: 80, type: "bat", role: "Opener" },
-  "Swastik Chikara": { bat: 78, bowl: 5, luck: 75, type: "bat", role: "Opener", },
-  "Musheer Khan": { bat: 78, bowl: 60, luck: 78, type: "bat", role: "All Rounder", },
-  "Aniket Verma": { bat: 75, bowl: 5, luck: 75, type: "bat", role: "Middle Order", },
-
-  // --- WICKETKEEPERS ---
-  "Rishabh Pant": { bat: 92, bowl: 0, luck: 90, type: "wk", role: "Wicket Keeper, Middle Order, Captain", },
-  "MS Dhoni": { bat: 85, bowl: 0, luck: 99, type: "wk", role: "Wicket Keeper, Finisher, Captain", },
-  "Jos Buttler": { bat: 93, bowl: 0, luck: 88, type: "wk", role: "Wicket Keeper, Opener, Power Hitter", },
-  "Heinrich Klaasen": { bat: 95, bowl: 0, luck: 90, type: "wk", role: "Wicket Keeper, Finisher, Spin Basher", },
-  "Sanju Samson": { bat: 90, bowl: 0, luck: 85, type: "wk", role: "Wicket Keeper, Top Order, Captain", },
-  "KL Rahul": { bat: 91, bowl: 0, luck: 85, type: "wk", role: "Wicket Keeper, Opener, Anchor", },
-  "Nicholas Pooran": { bat: 92, bowl: 0, luck: 88, type: "wk", role: "Wicket Keeper, Finisher", },
-  "Quinton de Kock": { bat: 89, bowl: 0, luck: 85, type: "wk", role: "Wicket Keeper, Opener", },
-  "Phil Salt": { bat: 88, bowl: 0, luck: 82, type: "wk", role: "Wicket Keeper, Opener", },
-  "Ishan Kishan": { bat: 87, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Opener", },
-  "Jitesh Sharma": { bat: 82, bowl: 0, luck: 78, type: "wk", role: "Wicket Keeper, Finisher", },
-  "Dhruv Jurel": { bat: 82, bowl: 0, luck: 82, type: "wk", role: "Wicket Keeper, Finisher", },
-  "Dinesh Karthik": { bat: 85, bowl: 0, luck: 88, type: "wk", role: "Wicket Keeper, Finisher", },
-  "Jonny Bairstow": { bat: 90, bowl: 0, luck: 85, type: "wk", role: "Wicket Keeper, Opener", },
-  "Rahmanullah Gurbaz": { bat: 84, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Opener", },
-  "Josh Inglis": { bat: 85, bowl: 0, luck: 82, type: "wk", role: "Wicket Keeper, Middle Order", },
-  "Shai Hope": { bat: 83, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Anchor", },
-  "Tristan Stubbs": { bat: 88, bowl: 15, luck: 85, type: "wk", role: "Wicket Keeper, Finisher", },
-  "Wriddhiman Saha": { bat: 82, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Opener", },
-  "Anuj Rawat": { bat: 78, bowl: 0, luck: 75, type: "wk", role: "Wicket Keeper", },
-  "Prabhsimran Singh": { bat: 84, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Opener", },
-  "KS Bharat": { bat: 78, bowl: 0, luck: 75, type: "wk", role: "Wicket Keeper", },
-  "Vishnu Vinod": { bat: 78, bowl: 0, luck: 75, type: "wk", role: "Wicket Keeper, Finisher", },
-  "Abishek Porel": { bat: 83, bowl: 0, luck: 80, type: "wk", role: "Wicket Keeper, Top Order", },
-  "Robin Minz": { bat: 80, bowl: 0, luck: 82, type: "wk", role: "Wicket Keeper, Power Hitter", },
-  "Kumar Kushagra": { bat: 78, bowl: 0, luck: 78, type: "wk", role: "Wicket Keeper", },
-  "Ryan Rickelton": { bat: 80, bowl: 0, luck: 75, type: "wk", role: "Wicket Keeper", },
-  "Donovan Ferreira": { bat: 82, bowl: 10, luck: 75, type: "wk", role: "Wicket Keeper, Finisher", },
-
-  // --- ALL-ROUNDERS (Top Tier) ---
-  "Hardik Pandya": { bat: 88, bowl: 85, luck: 90, type: "ar", role: "Finisher, All Rounder, Pacer", },
-  "Ravindra Jadeja": { bat: 85, bowl: 88, luck: 90, type: "ar", role: "Spinner, All Rounder, Left Arm Orth", },
-  "Andre Russell": { bat: 94, bowl: 82, luck: 90, type: "ar", role: "Finisher, All Rounder, Pacer", },
-  "Glenn Maxwell": { bat: 90, bowl: 75, luck: 80, type: "ar", role: "Finisher, All Rounder, Spinner", },
-  "Sunil Narine": { bat: 92, bowl: 90, luck: 92, type: "ar", role: "Opener, Spinner, Mystery Spin, All Rounder", },
-  "Axar Patel": { bat: 84, bowl: 88, luck: 88, type: "ar", role: "Spinner, All Rounder, Left Arm Orth", },
-  "Cameron Green": { bat: 87, bowl: 82, luck: 85, type: "ar", role: "Top Order, All Rounder, Pacer", },
-  "Liam Livingstone": { bat: 87, bowl: 70, luck: 80, type: "ar", role: "Finisher, All Rounder, Spinner", },
-  "Sam Curran": { bat: 78, bowl: 86, luck: 85, type: "ar", role: "All Rounder, Pacer, Swing", },
-  "Marcus Stoinis": { bat: 88, bowl: 75, luck: 88, type: "ar", role: "Finisher, All Rounder, Pacer", },
-  "Will Jacks": { bat: 88, bowl: 60, luck: 85, type: "ar", role: "Opener, All Rounder, Spinner", },
-  "Rachin Ravindra": { bat: 85, bowl: 75, luck: 82, type: "ar", role: "Opener, All Rounder, Spinner", },
-  "Moeen Ali": { bat: 82, bowl: 78, luck: 80, type: "ar", role: "Spinner, All Rounder", },
-  "Mitchell Marsh": { bat: 88, bowl: 78, luck: 82, type: "ar", role: "Top Order, All Rounder, Pacer", },
-  "Pat Cummins": { bat: 75, bowl: 92, luck: 95, type: "ar", role: "Pacer, Captain, All Rounder", },
-  "Ravichandran Ashwin": { bat: 72, bowl: 88, luck: 90, type: "ar", role: "Spinner, All Rounder", },
-
-  // --- ALL-ROUNDERS (Mid/Domestic) ---
-  "Nitish Kumar Reddy": { bat: 85, bowl: 78, luck: 88, type: "ar", role: "All Rounder, Pacer", },
-  "Azmatullah Omarzai": { bat: 80, bowl: 78, luck: 78, type: "ar", role: "All Rounder, Pacer", },
-  "Romario Shepherd": { bat: 82, bowl: 75, luck: 78, type: "ar", role: "Finisher, All Rounder, Pacer", },
-  "Mohammad Nabi": { bat: 80, bowl: 80, luck: 78, type: "ar", role: "All Rounder, Spinner", },
-  "Jason Holder": { bat: 75, bowl: 82, luck: 75, type: "ar", role: "All Rounder, Pacer", },
-  "Krunal Pandya": { bat: 78, bowl: 82, luck: 80, type: "ar", role: "All Rounder, Spinner", },
-  "Deepak Hooda": { bat: 78, bowl: 30, luck: 75, type: "ar", role: "Middle Order, All Rounder", },
-  "Rahul Tewatia": { bat: 82, bowl: 40, luck: 92, type: "ar", role: "Finisher, All Rounder", },
-  "Riyan Parag": { bat: 85, bowl: 40, luck: 80, type: "ar", role: "Middle Order, All Rounder", },
-  "Shahrukh Khan": { bat: 82, bowl: 10, luck: 78, type: "ar", role: "Finisher, All Rounder", },
-  "Chris Woakes": { bat: 65, bowl: 85, luck: 82, type: "ar", role: "All Rounder, Pacer", },
-  "Daniel Sams": { bat: 60, bowl: 82, luck: 80, type: "ar", role: "All Rounder, Pacer", },
-  "Kyle Mayers": { bat: 85, bowl: 70, luck: 80, type: "ar", role: "Opener, All Rounder, Pacer", },
-  "Vijay Shankar": { bat: 78, bowl: 60, luck: 75, type: "ar", role: "All Rounder, Pacer", },
-  "Shahbaz Ahmed": { bat: 75, bowl: 78, luck: 80, type: "ar", role: "All Rounder, Spinner", },
-  "Ramandeep Singh": { bat: 78, bowl: 65, luck: 80, type: "ar", role: "All Rounder, Pacer", },
-  "Lalit Yadav": { bat: 72, bowl: 65, luck: 75, type: "ar", role: "All Rounder, Spinner", },
-  "Washington Sundar": { bat: 75, bowl: 82, luck: 80, type: "ar", role: "All Rounder, Spinner", },
-  "Nitish Rana": { bat: 82, bowl: 40, luck: 75, type: "ar", role: "Middle Order, Part-timer", },
-  "Venkatesh Iyer": { bat: 84, bowl: 50, luck: 80, type: "ar", role: "Middle Order, All Rounder", },
-  "Daryl Mitchell": { bat: 86, bowl: 50, luck: 82, type: "ar", role: "Middle Order, All Rounder", },
-  "Aiden Markram": { bat: 85, bowl: 45, luck: 82, type: "ar", role: "Middle Order, Captain", },
-  "Sikandar Raza": { bat: 84, bowl: 82, luck: 82, type: "ar", role: "All Rounder, Spinner", },
-  "Mitchell Santner": { bat: 70, bowl: 86, luck: 85, type: "ar", role: "All Rounder, Spinner", },
-  "Arjun Tendulkar": { bat: 40, bowl: 78, luck: 75, type: "ar", role: "All Rounder, Pacer", },
-  "Tanush Kotian": { bat: 60, bowl: 75, luck: 75, type: "ar", role: "All Rounder, Spinner", },
-  "Suryansh Shedge": { bat: 65, bowl: 60, luck: 75, type: "ar", role: "All Rounder", },
-  "Vipraj Nigam": { bat: 60, bowl: 70, luck: 75, type: "ar", role: "All Rounder", },
-
-  // --- FAST BOWLERS (Foreign) ---
-  "Jasprit Bumrah": { bat: 20, bowl: 99, luck: 95, type: "bowl", role: "Pacer, Death Bowler, Yorker King", },
-  "Mitchell Starc": { bat: 30, bowl: 92, luck: 88, type: "bowl", role: "Pacer, Powerplay Specialist", },
-  "Trent Boult": { bat: 20, bowl: 90, luck: 88, type: "bowl", role: "Pacer, Powerplay Specialist, Swing", },
-  "Kagiso Rabada": { bat: 25, bowl: 89, luck: 85, type: "bowl", role: "Pacer, Express", },
-  "Jofra Archer": { bat: 40, bowl: 90, luck: 80, type: "bowl", role: "Pacer, Express", },
-  "Matheesha Pathirana": { bat: 5, bowl: 91, luck: 88, type: "bowl", role: "Pacer, Death Bowler", },
-  "Gerald Coetzee": { bat: 20, bowl: 86, luck: 85, type: "bowl", role: "Pacer", },
-  "Lockie Ferguson": { bat: 20, bowl: 88, luck: 85, type: "bowl", role: "Pacer, Express", },
-  "Mark Wood": { bat: 20, bowl: 89, luck: 85, type: "bowl", role: "Pacer, Express", },
-  "Anrich Nortje": { bat: 10, bowl: 88, luck: 80, type: "bowl", role: "Pacer, Express", },
-  "Josh Hazlewood": { bat: 15, bowl: 90, luck: 85, type: "bowl", role: "Pacer, Line & Length", },
-  "Marco Jansen": { bat: 65, bowl: 86, luck: 82, type: "bowl", role: "Pacer, Powerplay Specialist", },
-  "Spencer Johnson": { bat: 20, bowl: 84, luck: 80, type: "bowl", role: "Pacer", },
-  "Alzarri Joseph": { bat: 35, bowl: 85, luck: 80, type: "bowl", role: "Pacer", },
-  "Dilshan Madushanka": { bat: 10, bowl: 84, luck: 80, type: "bowl", role: "Pacer", },
-  "Nuwan Thushara": { bat: 10, bowl: 83, luck: 80, type: "bowl", role: "Pacer, Sling", },
-  "Mustafizur Rahman": { bat: 10, bowl: 87, luck: 85, type: "bowl", role: "Pacer, Cutter Specialist", },
-  "Fazalhaq Farooqi": { bat: 10, bowl: 85, luck: 80, type: "bowl", role: "Pacer", },
-  "Naveen-ul-Haq": { bat: 10, bowl: 86, luck: 82, type: "bowl", role: "Pacer, Slower Ball", },
-  "Nathan Ellis": { bat: 15, bowl: 85, luck: 80, type: "bowl", role: "Pacer" },
-  "Kwena Maphaka": { bat: 5, bowl: 82, luck: 80, type: "bowl", role: "Pacer" },
-
-  // --- FAST BOWLERS (Indian) ---
-  "Mohammed Shami": { bat: 15, bowl: 91, luck: 85, type: "bowl", role: "Pacer, Seam", },
-  "Mohammed Siraj": { bat: 10, bowl: 88, luck: 85, type: "bowl", role: "Pacer, Powerplay Specialist", },
-  "Arshdeep Singh": { bat: 10, bowl: 88, luck: 85, type: "bowl", role: "Pacer, Death Bowler", },
-  "Deepak Chahar": { bat: 30, bowl: 85, luck: 82, type: "bowl", role: "Pacer, Swing", },
-  "Shardul Thakur": { bat: 45, bowl: 82, luck: 90, type: "bowl", role: "Pacer, Golden Arm", },
-  "Bhuvneshwar Kumar": { bat: 30, bowl: 86, luck: 85, type: "bowl", role: "Pacer, Swing", },
-  "T Natarajan": { bat: 5, bowl: 87, luck: 82, type: "bowl", role: "Pacer, Death Bowler", },
-  "Mohit Sharma": { bat: 10, bowl: 86, luck: 85, type: "bowl", role: "Pacer, Slower Ball", },
-  "Harshal Patel": { bat: 40, bowl: 88, luck: 88, type: "bowl", role: "Pacer, Death Bowler, Slower Ball", },
-  "Mayank Yadav": { bat: 10, bowl: 88, luck: 85, type: "bowl", role: "Pacer, Express", },
-  "Avesh Khan": { bat: 15, bowl: 85, luck: 80, type: "bowl", role: "Pacer" },
-  "Khaleel Ahmed": { bat: 10, bowl: 86, luck: 82, type: "bowl", role: "Pacer" },
-  "Mukesh Kumar": { bat: 10, bowl: 85, luck: 82, type: "bowl", role: "Pacer, Death Bowler", },
-  "Ishant Sharma": { bat: 20, bowl: 83, luck: 80, type: "bowl", role: "Pacer" },
-  "Umesh Yadav": { bat: 30, bowl: 84, luck: 80, type: "bowl", role: "Pacer" },
-  "Prasidh Krishna": { bat: 10, bowl: 85, luck: 80, type: "bowl", role: "Pacer", },
-  "Umran Malik": { bat: 10, bowl: 84, luck: 75, type: "bowl", role: "Pacer, Express", },
-  "Harshit Rana": { bat: 40, bowl: 85, luck: 85, type: "bowl", role: "Pacer" },
-  "Akash Deep": { bat: 20, bowl: 84, luck: 80, type: "bowl", role: "Pacer" },
-  "Yash Dayal": { bat: 10, bowl: 83, luck: 80, type: "bowl", role: "Pacer" },
-  "Akash Madhwal": { bat: 10, bowl: 84, luck: 80, type: "bowl", role: "Pacer" },
-  "Vidwath Kaverappa": { bat: 10, bowl: 80, luck: 75, type: "bowl", role: "Pacer", },
-  "Tushar Deshpande": { bat: 15, bowl: 84, luck: 82, type: "bowl", role: "Pacer", },
-  "Vaibhav Arora": { bat: 15, bowl: 82, luck: 80, type: "bowl", role: "Pacer" },
-  "Yash Thakur": { bat: 10, bowl: 83, luck: 80, type: "bowl", role: "Pacer" },
-  "Kartik Tyagi": { bat: 20, bowl: 82, luck: 75, type: "bowl", role: "Pacer" },
-  "Chetan Sakariya": { bat: 20, bowl: 82, luck: 80, type: "bowl", role: "Pacer", },
-  "Simarjeet Singh": { bat: 15, bowl: 82, luck: 75, type: "bowl", role: "Pacer", },
-  "Rasikh Salam": { bat: 10, bowl: 82, luck: 80, type: "bowl", role: "Pacer" },
-  "Ashwani Kumar": { bat: 10, bowl: 78, luck: 75, type: "bowl", role: "Pacer" },
-
-  // --- SPINNERS ---
-  "Rashid Khan": { bat: 60, bowl: 96, luck: 92, type: "bowl", role: "Spinner, Leg Spin, Mystery Spin", },
-  "Yuzvendra Chahal": { bat: 5, bowl: 93, luck: 88, type: "bowl", role: "Spinner, Leg Spin", },
-  "Kuldeep Yadav": { bat: 10, bowl: 93, luck: 88, type: "bowl", role: "Spinner, Chinaman", },
-  "Ravi Bishnoi": { bat: 10, bowl: 88, luck: 85, type: "bowl", role: "Spinner, Leg Spin", },
-  "Varun Chakravarthy": { bat: 5, bowl: 89, luck: 82, type: "bowl", role: "Spinner, Mystery Spin", },
-  "Wanindu Hasaranga": { bat: 50, bowl: 90, luck: 85, type: "bowl", role: "Spinner, Leg Spin", },
-  "Maheesh Theekshana": { bat: 20, bowl: 87, luck: 80, type: "bowl", role: "Spinner, Mystery Spin", },
-  "Adam Zampa": { bat: 10, bowl: 87, luck: 80, type: "bowl", role: "Spinner, Leg Spin", },
-  "Mujeeb Ur Rahman": { bat: 20, bowl: 86, luck: 80, type: "bowl", role: "Spinner, Mystery Spin", },
-  "Noor Ahmad": { bat: 15, bowl: 87, luck: 85, type: "bowl", role: "Spinner, Chinaman", },
-  "Keshav Maharaj": { bat: 40, bowl: 85, luck: 80, type: "bowl", role: "Spinner, Left Arm Orth", },
-  "Adil Rashid": { bat: 30, bowl: 86, luck: 82, type: "bowl", role: "Spinner, Leg Spin", },
-  "Tabraiz Shamsi": { bat: 10, bowl: 85, luck: 80, type: "bowl", role: "Spinner, Chinaman", },
-  "Rahul Chahar": { bat: 20, bowl: 84, luck: 80, type: "bowl", role: "Spinner, Leg Spin", },
-  "Amit Mishra": { bat: 25, bowl: 83, luck: 85, type: "bowl", role: "Spinner, Leg Spin", },
-  "Piyush Chawla": { bat: 35, bowl: 85, luck: 88, type: "bowl", role: "Spinner, Leg Spin", },
-  "Karn Sharma": { bat: 30, bowl: 82, luck: 80, type: "bowl", role: "Spinner, Leg Spin", },
-  "Mayank Markande": { bat: 20, bowl: 83, luck: 80, type: "bowl", role: "Spinner, Leg Spin", },
-  "R Sai Kishore": { bat: 25, bowl: 85, luck: 82, type: "bowl", role: "Spinner, Left Arm Orth", },
-  "Suyash Sharma": { bat: 5, bowl: 84, luck: 80, type: "bowl", role: "Spinner, Mystery Spin", },
-  "Manimaran Siddharth": { bat: 10, bowl: 80, luck: 75, type: "bowl", role: "Spinner, Left Arm Orth", },
-  "Allah Ghazanfar": { bat: 10, bowl: 82, luck: 82, type: "bowl", role: "Spinner, Mystery Spin", },
-  "Digvesh Rathi": { bat: 5, bowl: 80, luck: 78, type: "bowl", role: "Spinner", },
-};
-
+// Redundant PLAYER_DATABASE removed
 const MARQUEE_PLAYERS = {
   batter: [
     { name: "Virat Kohli", type: "Indian" },
@@ -878,261 +787,7 @@ const RAW_DATA = {
   },
 };
 
-const PLAYER_IMAGE_MAP = {
-  "David Warner":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRy2UoIz9RctCjtDw0iTDr9W8lq_jMqGo0JpQ&s",
-  "Virat Kohli":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSXd7IOQ0NKyGMznUdvuNfPqT1PjyLLWs2PlA&s",
-  "rohit sharma":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3sfdazCnce91FbLAu66M2aa49A2OJ_UfWRg&s",
-  "rishabh pant":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR5UKPHZLy9Mb72EvFlbnmH6PA3ySNWbxvLWA&s",
-  "kl rahul":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQs5YIL9kZU5kRl0nW4CMDXezaXSrn_7d1cWw&s",
-  "jasprit bumrah":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSOhggyxRW4R8C5stRZeM6xF_-MLpKGeTTnNQ&s",
-  "hardik pandya":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSMl97E5YCG_qhtODqspjhQbiVKdgkGSQoj2w&s",
-  "axar patel":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZq-Wt00Pd8Olb3f8vzTE7ud9xeUv5yMcgsg&s",
-  "rashid khan":
-    "https://www.iplbetonline.in/wp-content/uploads/2023/04/218.png",
-  "heinrich klaasen":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiFL5rG_FgzbJjvdATUOQrhdsE90YPI4fuug&s",
-  "sanju samson":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR8Xp0CvnGYY2QCwxVow7kvpP3ZTkzVus1MGg&s",
-  "yashasvi jaiswal":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMMIlG4UCovEfziX_SI09qkf3_Cg2SX-P-Lg&s",
-  "mitchell starc":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPGz1TkJbf1sCV4pLRxdmXi6-QqjDAV3EKbw&s",
-  "nicholas pooran":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQttQw5G5G4LV07_JzAAlJwQYzTiJHDO-7JRQ&s",
-  "yuzvendra chahal":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSl2t1XzBVcHqNBLVc1n75AaJd2-tcnk4g48g&s",
-  "kuldeep yadav":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3BdPeWcBfg_ShlOT1BJcl1uhXwd6_jWxBoA&s",
-  "sai sudharsan":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQYqNPZ_ROZnx8SiGAG9uWubwN7ghfjPq3XXA&s",
-  "varun chakravarthy": "https://static.toiimg.com/photo/119129071.cms",
-  "t natarajan":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRqUl5j0TmK38vQvoxg9ngJVAUVhEzar1tT_w&s",
-  "abhishek sharma":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSvUeLIbFDGe9Whp3BX3CSqQ93dQoeZubgwBw&s",
-  "mohammed shami":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTnFzvB9NG74q7rS8MjSW_zD1pBRBat5YDHmw&s",
-  "daryl mitchell":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQsC0r1IFYQLEPXhy2OtS1VJp07YA80CCcd8Q&s",
-  "dewald brevis":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTQivnVww3TfhkuUmwYJZQuR6wroS0svAppA&s",
-  "ms dhoni":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQlUHTyVfbyG3PgcyaRzLI_KE9HHqUqgrFIFQ&s",
-  "suryakumar yadav":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHid9tiHpmtLTokHjhRy5N6vkVcxzL7thkeQ&s",
-  "travis head":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdPCSKpkwcuZDMlFoiDm3R3BAo1EzRtNdiPg&s",
-  "ravindra jadeja":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRI8Z-1QJiEVn2_eCbhrW5MyXhUJn9HE2XdAA&s",
-  "trent boult":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQIoXfsx5jBlVAr1H3fGk0S_c-0MNn-r-4o9Q&s",
-  "arshdeep singh":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz9QMCpjUJj5Smz5WS0If_WXhC-9F2-Tvs3w&s",
-  "glenn maxwell":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTH8L43Zy6vc06DL4pDJKRxaazWyqeJFs_xdw&s",
-  "sam curran":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR-X04hvyAKngMVDfBpYVahZeB58Rb4ryXO0A&s",
-  "krunal pandya":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRRTGdJoU_Hofobj-hU3tpyPMAKg_jtq9Lg1A&s",
-  "romario shepherd":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJvAy_9pMhWWvU7jvLjvq4IjAD_kluu7Kh2A&s",
-  "aiden markram":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOajmONNd7d64dfVUFmUbVEsO3yPHHnAx8Yg&s",
-  "liam livingstone":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTflymyT3ojb12YfLmIWYwvK7maoqsYvftyIw&s",
-  "shivam dube":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRGsxQpnbZyU0mtKlvBgnhPErZiGHehmb4YuA&s",
-  "quinton de kock":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS1husYcqQxzXbB2jYZctsHKUO1r5KYMUxyrA&s",
-  "dhruv jurel":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZm_mMkVrBrfrY9bs0swEN5Td1hE-aRz9n2w&s",
-  "jos buttler":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRJyXqCruiGYygsRkxwF7NIrT7IpAPR5fJJJA&s",
-  "andre russell":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRiGYYt9ovNiRcFSjadP2AksRsd0Mdi1dNZDg&s",
-  "ruturaj gaikwad":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSXGbBtm6R4GJT2j2ZxvROVEeV7UbrIuRDleA&s",
-  "shubman gill":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRtakT_H1Gyp9KF85UHvLv0MjQbT0OXLJlsEQ&s",
-  "shreyas iyer":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRO10-jV4zy9JtIxbWzRZiJagKzkYR4l507Cw&s",
-  "tilak varma":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTfMM-hv47GDNhi-6WrbcBfD-AUAPy0qnjSnw&s",
-  "devon conway":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREdCc6o0V15HYS4vv_HFww4fUehf5t9ByGxA&s",
-  "devdatt padikal":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSAuY6qP02fFUlKZ4ld7Wrhm-alVVJeTcNv2A&s",
-  "kane williamson":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRGpOxgmrjBEe7v76wwMov_YFuAoogFSrZ_zg&s",
-  "will jacks":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR6J3WVvja_9EB2qJ8er90GqkEDTCGv5hQBag&s",
-  "harry brook":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRAArvrYHQzYLSlOugAi6drdAg5IzIibCyjaw&s",
-  "ibrahim zadran":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSS0O-R0JSfMt0maVI6v6OU1a0SSIj8ijeOnQ&s",
-  "lockie ferguson":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQGQmTjuxXSYhQHZcRi9U8UlqMyYiYBLn2cBg&s",
-  "josh hazlewood":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-4ZjUwjHrvhukWLmMNoM2P69feAJ9zck9uQ&s",
-  "harshit rana":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQpcXQmpK-CbFtlnQnmCoN9FmPS3xbOGLwUDQ&s",
-  "prasidh krishna":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOhgXERAAoBAuhwRRZf2wMWISXjnIYDlrEmA&s",
-  "kagiso rabada":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxvidFiausg2Me1UfVNU7f1cx_jYsLdeUwaQ&s",
-  "harshal patel":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFgJDXgf0In2PO3Ie9mO4_8VjqwwRkRP2e8Q&s",
-  "pat cummins":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS9nkSiV6jtCApLRnOFSKUAUQspjV5hpJOdBQ&s",
-  "matheesha pathirana":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR4TerGmA61_rrVaNBeBHejm5J60vzQs0rWTg&s",
-  "mark wood":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT61NLgM2DT5tYUhLKRjLyylZzRbxc4wTb_3A&s",
-  "mukesh kumar":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS8hgsxXLIMkdEMRyqIzCMlnwpGjG2nKV1hGw&s",
-  "anrich nortje":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQp_INFjiNgN1e9CgcoGSYEoHR7d863BrAEkg&s",
-  "tushar deshpande":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ2chrGKb_zLMRCjpQh2rSEG6AewNxP5L3k7Q&s",
-  "sunil narine":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWsWXzcPF-5GJEEjgr9IaPPn-yCHMyZxCMqA&s",
-  "wanindu hasaranga":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOd5ea0dPuQ2Piq3gCg0k2XdaF810mFPWFoA&s",
-  "mujeeb ur rahman":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTC9WDInYus_x1b86moJX9kYdTW3Le84sDrWg&s",
-  "rahmanullah gurbaz":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRW2tuWnal4q-leOBRU4aWfcngk1NWbY04XnQ&s",
-  "noor ahmad":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT4Aw3GMm7PPUQOM4Z1csrE8n5rxcfLZfu5sg&s",
-  "maheesh theekshana":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRprnzQmcBvOhfS1eqZHcporjcEYFWqQmVMnQ&s",
-  "murugan ashwin":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZp4FDSxl5b3K9mouAdn5zJJ_cyrXQvhf0mg&s",
-  "adam zampa":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQqVlUCngLKUeqaRirZaRWkeQIsEmHmoAIuqw&s",
-  "mayank markande":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAR6Wt6xq1oPl5upF_8CiXxmc37xT-CisXLw&s",
-  "ravi bishnoi":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQvLEQRAinM5V7CwTqzdau9AqiOC7erIisKw&s",
-  "alex carey":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR3fx9oUbwobdrMkbA2eWpUwzRWazNT3Sk1ug&s",
-  "dinesh karthik":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQ7EgmJkgCRpcfBrFV0CXGx6bIKjtk5wEeVQ&s",
-  "jitesh sharma":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTjeHFwIBbAbF_tpPcXNUp0-5D1LOANzxLxWA&s",
-  "washington sundar":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkWDcgskNJH3SvDpogZ-QXE7WQnstEvuk8Kg&s",
-  "riyan parag":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTNQGzq26UBlFu_dPv--OOFgCiyHBGTnqBumw&s",
-  "nitish rana":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJLQfDqFWetnMsl8WmFsRZhQBCLlDv7fiT1Q&s",
-  "mitchell marsh":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSctxL2Fnj4DdMI8wf84B8Zku6tdXqBMs3lrw&s",
-  "tim david":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFdb361FkQD3qyQTu2z9oqHQ7MJLXTKYuSsA&s",
-  "cameron green":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1x3cvTR2n1ab-W6LhAwKcyUuHUuDMqzMiSw&s",
-  "marcus stoinis":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS7TaJF3IIbU7FPkYCHT0j3LQGVrVhnzIDR7Q&s",
-  "rinku singh":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQzbWiyOzr11AFN-yAzFYWzQmEu5F3JsRyRrw&s",
-  "deepak hooda":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTF918ic4VnyxQvakJJsXT1OKmeBIuIkwKyhA&s",
-  "rahul tewatia":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTeCWXJoDrKnXVVrV3IYBNhhrUwwBaOi_l5NA&s",
-  "phil salt":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ6CRh_5YOiZaB_s-OO5w1z5AvBNEM0X-qDDw&s",
-  "shahrukh khan":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR8Xp0CvnGYY2QCwxVow7kvpP3ZTkzVus1MGg&s",
-  "Faf du Plessis":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRuw5WAznke_M1y83XWQl3WyTpj8mmvquREPA&s",
-  "David Miller":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZzfUcZmOT3vo7ucCn8zdlh3FTFcB0gs_t8w&s",
-  "Shimron Hetmyer":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHPHEGd-TGdia5MOHN8DEeNoQm5g4cMpx9SQ&s",
-  "Jake Fraser-McGurk":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHbxIFZAqNHXoUfusHxX38_9EPuS5f4V_y6w&s",
-  "Shikhar Dhawan":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTmSJKeitXBUIzCdNM51xg6URHrI3QbqOijrw&s",
-  "Ajinkya Rahane":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSOalqxPGHCV7hgvZXyVQB4xOHofBssMM1QWA&s",
-  "Prithvi Shaw":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQO8FOcrG-t8xbjHLMkPJd2Z3PKYkD51LcuaQ&s",
-  "Venkatesh Iyer":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxQXScapO97PkWzl-KejLhLg2U6BsTNrRfRA&s",
-  "Rajat Patidar":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJtqyJBHfsL7M4Vn9pthbqPEoSEPHP7IcTXg&s",
-  "Manish Pandey":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTVwDd6V2GJLNk8EElhqC_Yj-W1DJ6130r64A&s",
-  "Jofra Archer":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTo8gIuGKKIp3GOCRLEKfTeeWCn7c3FiwjUxQ&s",
-  "Gerald Coetzee":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTB6jCTyyHld0Ac-GnphqAk9h-MgYs6y3OoDQ&s",
-  "Marco Jansen":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTy_tiNO9KkLrz_axRUXa-4DGdut8N_5nWi-Q&s",
-  "Mustafizur Rahman":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQOlM0BXEu-szyb97Gj6ORu1DfDYIosi_BCUg&s",
-  "Fazalhaq Farooqi":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTlD694z3N59mxkGYeLAM6YTJFHHvBNvU3ntQ&s",
-  "Mohammed Siraj":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSVAwAb_htAQ9WCy0gaJKmQJiPluMal9hNwLw&s",
-  "Deepak Chahar":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHSk-8Xek9lTIVSC9tslRP0_Gxt6tU2QvEbg&s",
-  "Shardul Thakur":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHQBozbzAgGAzQ5JDOLRcr6YQkXoWM1eEyQg&s",
-  "Bhuvneshwar Kumar":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQT6Ikzu_k3_jaV12gy2td03yTJFJanJcNn-A&s",
-  "Mohit Sharma":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQt9Q8umC9f5_f-8YyvFlqNxNZpKiQ00DqHnQ&s",
-  "Khaleel Ahmed":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPGM9mnxrIQvVNL5T5BJ5H0r1FLqCX2_56SA&s",
-  "Mitchell Santner":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSyCFUEjnNWNYhNQWt2pVY-nraaeT7Xp5CLDw&s",
-  "Ravichandran Ashwin":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTP-_GveSb4AACOwVRgOXYTISPvlt4XFaeNlg&s",
-  "Rahul Chahar":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlgntjI0Wv5sx8A2bzstHCl7wMJW6pHv5tkw&s",
-  "R Sai Kishore":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSyhgmmkhP8CIvTQRT-WwI-k1PVHzm1usIwHw&s",
-  "Vijay Shankar":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRa0X4bPB_8GWQh2bnPVKLjLhMnCvuGpx0jUw&s",
-  "Shahbaz Ahmed":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR_A8dTo3ziPjrxTsNrnMOdA0lIg1mKuQHIhg&s",
-  "Moeen Ali":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRnblRwkKMZo2eRojywZhyIznpY6h-ct0LFog&s",
-  "Rachin Ravindra":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcScrUYzDrJV6lwAh-h9ZKzBF72Dh-apAivglg&s",
-  "Azmatullah Omarzai":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSI_vHDCuM1AWo_zEDwUbc_sG2I-4mJDlNgbw&s",
-  "Mohammad Nabi":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRgPYEEBo2iJrQeUxClBQIq8ZA0cr6AryKh3g&s",
-  "Jason Holder":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT949IOng4bWbSkMePYOjMBXKbOQKYkVsm95w&s",
-  "Chris Woakes":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSdPCTRMrjZ4gtWa6kx7mhsUxOM_IXsDPQsNg&s",
-  "Ishan Kishan":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRvI17T3mE31eNA35OSyvuvIVvtGLjlOYFLGw&s",
-  "Wriddhiman Saha":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQLxziLIljwF5qLn-CsUtL1k5MFCOoz_fkL_Q&s",
-  "Tristan Stubbs":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgVBnKUGvBQjHnNvaw_A9lKO7c6MwP2EqHlQ&s",
-  "Josh Inglis":
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ96_gVuW8JTbxirRPH9mVAjB59jbtQRt6UtQ&s",
-};
-
-// FIX: Runtime Normalization of Image Keys to Lowercase
-const NORMALIZED_IMAGE_MAP = {};
-Object.keys(PLAYER_IMAGE_MAP).forEach((k) => {
-  NORMALIZED_IMAGE_MAP[k.toLowerCase()] = PLAYER_IMAGE_MAP[k];
-});
+// 🖼️ PLAYER_IMAGE_MAP and NORMALIZED_IMAGE_MAP are now centrally managed in player-database.js
 
 // --- CONSTANTS ---
 const ROLE_ORDER = {
@@ -1150,10 +805,12 @@ const ROLE_ORDER = {
 };
 
 function getRolePriority(role) {
+  if (!role) return 6;
   return ROLE_ORDER[role.toLowerCase()] || 6;
 }
 
 function getRoleIcon(role) {
+  if (!role) return "👤";
   role = role.toLowerCase();
   if (role === "wk") return "🧤";
   if (role === "batter" || role === "bat") return "🏏";
@@ -1162,7 +819,7 @@ function getRoleIcon(role) {
   if (role.includes("fast") || role.includes("pace") || role === "bowl")
     return "⚡";
   if (role === "bowler") return "⚾";
-  return "";
+  return "👤";
 }
 
 function formatAmount(amount) {
@@ -1196,12 +853,16 @@ function logEvent(message, highlight = false) {
 }
 
 function getPlayerStats(name, roleHint = "bat") {
-  if (PLAYER_DATABASE[name])
+  const dbEntry =
+    window.NORMALIZED_PLAYER_DB?.[name.toLowerCase()] ||
+    window.PLAYER_DATABASE?.[name];
+
+  if (dbEntry)
     return {
-      bat: PLAYER_DATABASE[name].bat,
-      bowl: PLAYER_DATABASE[name].bowl,
-      luck: PLAYER_DATABASE[name].luck,
-      role: PLAYER_DATABASE[name].role || PLAYER_DATABASE[name].type,
+      bat: dbEntry.bat,
+      bowl: dbEntry.bowl,
+      luck: dbEntry.luck,
+      role: dbEntry.role || dbEntry.type,
     };
   let hash = 0;
   for (let i = 0; i < name.length; i++)
@@ -1229,45 +890,33 @@ function getPlayerStats(name, roleHint = "bat") {
   return { bat, bowl, luck, role: roleHint };
 }
 
-// --- DOM EVENT LISTENERS ---
-
-// 1. HOST: Create Room
-document.getElementById("doCreateBtn").addEventListener("click", () => {
-  if (!socketAlive)
-    return (lobbyError.innerText = "Connection lost. Reconnecting...");
-
-  const roomId = document.getElementById("createRoomId").value.toUpperCase();
-  const pass = document.getElementById("createPass").value;
-
-  if (!roomId || pass.length !== 4)
-    return (lobbyError.innerText = "Invalid Room ID or Password");
-
-  localStorage.setItem("ipl_last_room", roomId);
-  localStorage.setItem("ipl_last_pass", pass);
-  if (typeof Auth !== 'undefined') Auth.syncSessionToMongoDB();
-
-  socket.emit("create_room", { roomId, password: pass, config: {} });
-});
-
-// 2. JOIN: Join Room
-document.getElementById("doJoinBtn").addEventListener("click", () => {
-  if (!socketAlive)
-    return (lobbyError.innerText = "Connection lost. Reconnecting...");
-
-  const roomId = document.getElementById("joinRoomId").value.toUpperCase();
-  const pass = document.getElementById("joinPass").value;
-
-  if (!roomId || pass.length !== 4)
-    return (lobbyError.innerText = "Check Credentials");
-
-  localStorage.setItem("ipl_last_room", roomId);
-  localStorage.setItem("ipl_last_pass", pass);
-  if (typeof Auth !== 'undefined') Auth.syncSessionToMongoDB();
-
-  socket.emit("join_room", { roomId, password: pass });
-});
+// --- REPLACED LISTENERS ---
+// Create and Join Room listeners have been moved to the DOMContentLoaded block
+// and use the modernized 'attachCreateRoomListener' and 'attachJoinRoomListener' functions.
 
 // --- SOCKET EVENTS ---
+
+socket.on("error_message", (msg) => {
+  console.error("Server Error:", msg);
+  alert(`⚠️ Error: ${msg}`);
+
+  // Reset Lobby Buttons
+  const createBtn = document.getElementById("doCreateBtn");
+  const joinBtn = document.getElementById("doJoinBtn");
+  const lobbyError = document.getElementById("lobbyError");
+
+  if (createBtn) {
+    createBtn.disabled = false;
+    createBtn.innerHTML = "CREATE ROOM";
+  }
+  if (joinBtn) {
+    joinBtn.disabled = false;
+    joinBtn.innerHTML = "JOIN ROOM";
+  }
+  if (lobbyError) {
+    lobbyError.innerText = msg;
+  }
+});
 
 socket.off("roomcreated");
 socket.on("roomcreated", (roomId) => {
@@ -1310,15 +959,8 @@ socket.on("room_joined", (data) => {
     connectedUsersCount = data.lobbyState.userCount;
     document.getElementById("joinedCount").innerText = connectedUsersCount;
 
-    const savedTeamKey = localStorage.getItem(`ipl_team_${data.roomId}`);
-    if (savedTeamKey) {
-      socket.emit("reclaim_team", savedTeamKey);
-    } else {
-      const myTeam = globalTeams.find(
-        (t) => t.ownerPlayerId === myPersistentId,
-      );
-      if (myTeam) mySelectedTeamKey = myTeam.bidKey;
-    }
+    // Resume logic removed.
+    // Clean state for new game experience.
 
     globalTeams.forEach((t) => {
       if (t.isTaken) knownTakenTeams.add(t.bidKey);
@@ -1341,9 +983,29 @@ socket.on("room_joined", (data) => {
 
   if (data.state && data.state.isActive) {
     auctionStarted = true;
-    switchToAuctionMode(data.state.teams);
-    if (data.state.queue) auctionQueue = data.state.queue;
-    socket.emit("request_sync");
+
+    // Only switch if we already have a team (e.g. resume) or if we are admin
+    if (mySelectedTeamKey || isAdmin) {
+      switchToAuctionMode(data.state.teams);
+      if (data.state.queue) auctionQueue = data.state.queue;
+      socket.emit("request_sync");
+    } else {
+      if (lobbyError)
+        lobbyError.innerText = "⚠️ Auction is LIVE! Pick a team quickly.";
+    }
+  }
+
+  // Restore Chat History
+  if (data.chatHistory) {
+    const chatContainer = document.getElementById("chatMessages");
+    if (chatContainer) {
+      chatContainer.innerHTML = `
+              <div class="text-center text-white-50 small mb-2">
+                  Welcome back! Previous messages restored.
+              </div>
+          `;
+      data.chatHistory.forEach((msg) => appendChatMessage(msg));
+    }
   }
 });
 
@@ -1386,8 +1048,14 @@ socket.off("sync_data");
 socket.on("sync_data", (data) => {
   if (data.teams) {
     globalTeams = data.teams;
+    auctionStarted = !!data.isActive; // Keep state in sync
     if (data.isActive) {
-      switchToAuctionMode(globalTeams);
+      // Only switch if we have a team or are admin
+      if (mySelectedTeamKey || isAdmin) {
+        switchToAuctionMode(globalTeams);
+      } else {
+        renderLobbyTeams();
+      }
     } else {
       renderLobbyTeams();
     }
@@ -1519,6 +1187,26 @@ function renderLobbyTeams() {
     )}</div></div>`;
   });
 
+  // Handle Waiting State for non-admins who have a team
+  const waitingState = document.getElementById("waitingState");
+  if (!isAdmin && mySelectedTeamKey) {
+    const myTeam = globalTeams.find((t) => t.bidKey === mySelectedTeamKey);
+    if (myTeam) {
+      container.style.display = "none";
+      if (waitingState) {
+        waitingState.style.display = "block";
+        document.getElementById("waitingTeamName").innerText = `YOUR TEAM: ${myTeam.name}`;
+      }
+      const waitingText = document.getElementById("waitingText");
+      if (waitingText) waitingText.style.display = "none";
+    }
+  } else {
+    container.style.display = "grid";
+    if (waitingState) waitingState.style.display = "none";
+    const waitingText = document.getElementById("waitingText");
+    if (waitingText) waitingText.style.display = "block";
+  }
+
   if (isAdmin) {
     const startBtn = document.getElementById("startBtn");
     const takenCount = globalTeams.filter((t) => t.isTaken).length;
@@ -1551,7 +1239,13 @@ document.getElementById("startBtn").addEventListener("click", () => {
 socket.off("auction_started");
 socket.on("auction_started", (data) => {
   auctionStarted = true;
-  switchToAuctionMode(data.teams);
+  // Only switch if we have a team or are admin
+  if (mySelectedTeamKey || isAdmin) {
+    switchToAuctionMode(data.teams);
+  } else {
+    if (lobbyError)
+      lobbyError.innerText = "⚠️ Auction is LIVE! Pick a team quickly.";
+  }
   auctionQueue = data.queue;
   logEvent(`<strong>AUCTION STARTED</strong>`, true);
   playHammerSound();
@@ -1562,10 +1256,25 @@ socket.on("auction_started", (data) => {
 
 function enterGame(roomId) {
   myRoomId = roomId;
+  window.myRoomId = roomId;
   document.getElementById("currentRoomDisplay").innerText = roomId;
-  lobbyScreen.style.display = "none";
-  gameContainer.style.display = "block";
-  document.getElementById("setupSection").style.display = "flex";
+  
+  // Smoothly hide lobby and show game
+  if (lobbyScreen) {
+    lobbyScreen.style.setProperty("display", "none", "important");
+  }
+  
+  if (gameContainer) {
+    gameContainer.style.display = "block";
+  }
+  
+  const setupSection = document.getElementById("setupSection");
+  if (setupSection) {
+    setupSection.style.display = "flex";
+  }
+  
+  document.getElementById("auctionDashboard").style.display = "none";
+  auctionStarted = false;
 
   // Initialize sound button now that gameContainer is visible
   initializeSoundButton();
@@ -1583,6 +1292,9 @@ function claimLobbyTeam(key) {
     const name = nameInput.value.trim();
     myPlayerName = name;
     localStorage.setItem("ipl_auction_player_name", name);
+    
+    // ✨ Sync to MongoDB
+    if (typeof Auth !== "undefined") Auth.syncSessionToMongoDB();
 
     // Hide name entry section
     const nameSection = document.getElementById("nameEntrySection");
@@ -1594,6 +1306,8 @@ function claimLobbyTeam(key) {
   // Send player name to server first if we have one
   if (myPlayerName) {
     socket.emit("update_player_name", { playerName: myPlayerName });
+    // ✨ Also sync identity
+    if (typeof Auth !== "undefined") Auth.syncSessionToMongoDB();
   } else {
     // If no name is set, prompt user
     alert("Please enter your name first!");
@@ -1652,13 +1366,32 @@ socket.off("team_claim_success");
 socket.on("team_claim_success", (key) => {
   mySelectedTeamKey = key;
   if (myRoomId) {
-      localStorage.setItem(`ipl_team_${myRoomId}`, key);
-      // ✨ Sync to MongoDB immediately
-      if (typeof Auth !== 'undefined') Auth.syncSessionToMongoDB();
+    localStorage.setItem(`ipl_team_${myRoomId}`, key);
+    // ✨ Sync to MongoDB immediately
+    if (typeof Auth !== "undefined") Auth.syncSessionToMongoDB();
   }
   renderLobbyTeams();
   lobbyError.innerText = "✅ Team ownership granted!";
   logEvent("✅ Team ownership restored.", true);
+
+  // Switch to wait mode if auction hasn't started
+  if (!isAdmin && !auctionStarted) {
+    const waitingState = document.getElementById("waitingState");
+    const container = document.getElementById("teamNamesContainer");
+    const myTeam = globalTeams.find((t) => t.bidKey === key);
+    
+    if (container) container.style.display = "none";
+    if (waitingState) {
+        waitingState.style.display = "block";
+        if (myTeam) document.getElementById("waitingTeamName").innerText = `YOUR TEAM: ${myTeam.name}`;
+    }
+    const waitingText = document.getElementById("waitingText");
+    if (waitingText) waitingText.style.display = "none";
+  }
+
+  if (!isAdmin && auctionStarted) {
+    switchToAuctionMode(globalTeams);
+  }
 });
 
 // --- AUCTION QUEUE BUILDER ---
@@ -1798,7 +1531,25 @@ function buildAuctionQueue() {
       500000,
     ),
   );
-  safePush(shuffle([...domBat, ...domBowl]));
+  const domWK = RAW_DATA["Domestic"].wicketkeepers.map((n) =>
+    createPlayer(
+      { name: n, type: "Uncapped" },
+      "Domestic Set",
+      "wk",
+      2000000,
+      500000,
+    ),
+  );
+  const domAR = RAW_DATA["Domestic"].allrounders.map((n) =>
+    createPlayer(
+      { name: n, type: "Uncapped" },
+      "Domestic Set",
+      "ar",
+      2000000,
+      500000,
+    ),
+  );
+  safePush(shuffle([...domBat, ...domBowl, ...domWK, ...domAR]));
 
   return queue;
 }
@@ -2132,15 +1883,21 @@ function adjustIncrement(isIncrease) {
   if (isIncrease) val += step;
   input.value = val;
   const bidBtn = document.getElementById("placeBidBtn");
-  if (bidBtn && !bidBtn.disabled) {
-    let currentPrice = parsePrice(document.getElementById("pBid").innerText);
-    if (document.getElementById("pBid").innerText.includes("-"))
-      currentPrice = currentActivePlayer.basePrice - val;
-    if (currentPrice < 0) currentPrice = 0;
-    const nextPrice = currentPrice + val;
+  if (currentHighestBidderKey === mySelectedTeamKey) {
+    bidBtn.disabled = true;
+    bidBtn.innerHTML = `WINNING <i class="bi bi-check-circle"></i>`;
+    bidBtn.style.background = "#333";
+    bidBtn.style.color = "#888";
+  } else {
+    bidBtn.disabled = false;
+    // Fix: Using current bid amount from UI
+    const currentAmount = parsePrice(document.getElementById("pBid").innerText);
+    const nextBid = currentAmount + val;
     bidBtn.innerHTML = `BID ${formatAmount(
-      nextPrice,
+      nextBid,
     )} <i class="bi bi-hammer"></i>`;
+    bidBtn.style.background = "";
+    bidBtn.style.color = "";
   }
 }
 
@@ -2167,9 +1924,10 @@ function updateTeamSidebar(teams) {
         ? `<div style="font-size: 0.65rem; color: #888; margin-top: 2px;">${t.playerName}</div>`
         : "";
 
-      const clickAction = (!isMine && !t.isTaken && !mySelectedTeamKey) 
-        ? `onclick="claimLobbyTeam('${t.bidKey}')" style="cursor: pointer;"` 
-        : "";
+      const clickAction =
+        !isMine && !t.isTaken && !mySelectedTeamKey
+          ? `onclick="claimLobbyTeam('${t.bidKey}')" style="cursor: pointer;"`
+          : "";
 
       card.innerHTML = `
                 <div class="f-header" ${clickAction}>
@@ -2180,7 +1938,7 @@ function updateTeamSidebar(teams) {
                             : ""
                         }
                         ${playerNameDisplay}
-                        ${(!isMine && !t.isTaken && !mySelectedTeamKey) ? '<br><span class="badge bg-success" style="font-size:0.5rem">JOIN FREE TEAM</span>' : ''}
+                        ${!isMine && !t.isTaken && !mySelectedTeamKey ? '<br><span class="badge bg-success" style="font-size:0.5rem">JOIN FREE TEAM</span>' : ""}
                     </div>
                     <div class="f-budget">${formatAmount(t.budget)}</div> 
                 </div>
@@ -2254,6 +2012,25 @@ document
       isAdmin && confirm("End Auction?") && socket.emit("end_auction_trigger"),
   );
 
+document.getElementById("autoWinBtn").addEventListener("click", () => {
+  if (!isAdmin || saleProcessing) return;
+  if (confirm("⚡ Claim this player for your team instantly?")) {
+    saleProcessing = true;
+    socket.emit("auto_win_bid");
+  }
+});
+
+document.getElementById("fastFinishBtn").addEventListener("click", () => {
+  if (!isAdmin) return;
+  if (
+    confirm(
+      "⚠️ FAST FINISH?\n(This will skip all remaining players, auto-fill squads, and run simulation immediately)",
+    )
+  ) {
+    socket.emit("force_fast_finish");
+  }
+});
+
 function updatePauseButtonState(isPaused) {
   const btn = document.getElementById("timerToggleBtn");
   btn.innerHTML = isPaused
@@ -2273,6 +2050,7 @@ let mySelectedCaptain = null;
 socket.off("open_squad_selection");
 socket.on("open_squad_selection", (data) => {
   console.log("📢 SQUAD SELECTION OPENED", data);
+  saleProcessing = false; // Reset lock
 
   if (data && data.teams) {
     globalTeams = data.teams;
@@ -2322,7 +2100,7 @@ function normalizeTeamStats(team) {
 function clampT20Score(scoreStr) {
   if (!scoreStr) return "0/0";
   const [runs, wkts = "0"] = scoreStr.toString().split("/");
-  const cappedRuns = Math.min(parseInt(runs) || 0, 280); // Increased cap lightly
+  const cappedRuns = Math.min(parseInt(runs) || 0, 400); // Increased cap significantly for realism
   return `${cappedRuns}/${wkts}`;
 }
 
@@ -2346,12 +2124,14 @@ function renderMySquadSelection() {
     return (list.innerHTML =
       "<div class='text-white-50 text-center mt-5'>No players bought!</div>");
 
+  console.log("Rendering Roster for", myTeam.name, myTeam.roster);
   const sortedRoster = [...myTeam.roster].sort(
     (a, b) => getRolePriority(a.roleKey) - getRolePriority(b.roleKey),
   );
 
   sortedRoster.forEach((p, i) => {
-    const originalIndex = myTeam.roster.indexOf(p);
+    console.log("Adding player to UI:", p.name, p.roleKey);
+    const originalIndex = myTeam.roster.findIndex(x => x.name === p.name);
     const isForeign = p.playerType === "Foreign";
     const badge = isForeign
       ? '<span class="badge bg-danger ms-2" style="font-size:0.6rem">✈️</span>'
@@ -2760,47 +2540,90 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("joinRoomId").value = r;
     document.getElementById("joinPass").value = p;
   }
+
+  // --- QUICK START / AUTO JOIN LOGIC ---
+  const urlParams = new URLSearchParams(window.location.search);
+  const action = urlParams.get("action");
+  const roomParam = urlParams.get("room");
+  const passParam = urlParams.get("pass");
+
+  if (action === "new" || (roomParam && passParam)) {
+    console.log("🚀 Custom flow detected. Redirecting...");
+    if (lobby) lobby.style.display = "none";
+
+    setTimeout(() => {
+      if (action === "new") {
+        const createRoomInput = document.getElementById("createRoomId");
+        const createPassInput = document.getElementById("createPass");
+        const doCreateBtn = document.getElementById("doCreateBtn");
+
+        if (createRoomInput && createPassInput && doCreateBtn) {
+          createRoomInput.value = Math.floor(
+            100000 + Math.random() * 900000,
+          ).toString();
+          createPassInput.value = "0000";
+
+          if (socket.connected) doCreateBtn.click();
+          else socket.on("connect", () => doCreateBtn.click());
+        }
+      } else if (roomParam && passParam) {
+        const joinRoomInput = document.getElementById("joinRoomId");
+        const joinPassInput = document.getElementById("joinPass");
+        const doJoinBtn = document.getElementById("doJoinBtn");
+
+        if (joinRoomInput && joinPassInput && doJoinBtn) {
+          joinRoomInput.value = roomParam;
+          joinPassInput.value = passParam;
+
+          if (socket.connected) doJoinBtn.click();
+          else socket.on("connect", () => doJoinBtn.click());
+        }
+      }
+    }, 800);
+  }
 });
 
 /* =========================================
    AUTO TEST FEATURE (SKIP AUCTION)
    ========================================= */
 
+// 🔥 CSK (STRONG TEAM – like RCB 2025 power squad)
+// ⚡ KKR (Balanced power + spin core)
+// 🔴 RCB (STRONG SQUAD – Power batting + quality pace + spin)
+
+
+
+// 🟡 CSK (MEDIUM SQUAD – Balanced but slightly weaker than RCB)
 const AUTO_RCB_NAMES = [
-  "Virat Kohli",
-  "Faf du Plessis",
-  "Rajat Patidar",
-  "Glenn Maxwell",
-  "Cameron Green",
-  "Dinesh Karthik",
-  "Wanindu Hasaranga",
-  "Harshal Patel",
-  "Mohammed Siraj",
-  "Reece Topley",
-  "Karn Sharma",
-  "Mahipal Lomror",
-  "Anuj Rawat"
+  "Virat Kohli",         // Retained - Opener
+  "Phil Salt",           // NEW - Explosive Opener (WK)
+  "Rajat Patidar",       // Retained - Captain / No.3
+  "Liam Livingstone",    // NEW - Power Hitter / Spin
+  "Jitesh Sharma",       // NEW - Finisher (WK)
+  "Krunal Pandya",       // NEW - Spin All-rounder
+  "Tim David",           // NEW - Finisher
+  "Bhuvneshwar Kumar",   // NEW - Swing Specialist
+  "Josh Hazlewood",      // NEW - Pace Spearhead
+  "Yash Dayal",          // Retained - Left-arm Pace
+  "Suyash Sharma",       // NEW - Leg-spinner
+  "Devdutt Padikkal",    // NEW - Bench / Top order
+  "Rasikh Salam Dar"     // NEW - Bench / Death Bowling
 ];
-
 const AUTO_CSK_NAMES = [
-  "Ruturaj Gaikwad",
-  "Devon Conway",
-  "Ajinkya Rahane",
-  "Shivam Dube",
-  "Moeen Ali",
-  "Ravindra Jadeja",
-  "MS Dhoni",
-  "Mitchell Santner",
-  "Deepak Chahar",
-  "Matheesha Pathirana",
-  "Tushar Deshpande",
-  "Maheesh Theekshana",
-  "Sameer Rizvi"
+  "Ruturaj Gaikwad",     // Retained - Captain / Opener
+  "Devon Conway",        // RE-BOUGHT - Opener
+  "Rachin Ravindra",     // RE-BOUGHT - No.3 / Spin
+  "Shivam Dube",         // Retained - Power Hitter
+  "Ravindra Jadeja",     // Retained - All-rounder
+  "Sam Curran",          // NEW - Pace All-rounder
+  "MS Dhoni",            // Retained - Finisher (WK)
+  "Ravichandran Ashwin", // NEW - Spin (Homecoming)
+  "Noor Ahmad",          // NEW - X-Factor Spinner
+  "Khaleel Ahmed",       // NEW - Left-arm Pace
+  "Matheesha Pathirana", // Retained - Death Specialist
+  "Rahul Tripathi",      // NEW - Bench / Middle order
+  "Nathan Ellis"         // NEW - Bench / Death Pace
 ];
-
-
-
-
 
 // Explanation
 
@@ -2911,23 +2734,33 @@ function sendChatMessage() {
 // Receive Chat Message
 socket.off("chat_message");
 socket.on("chat_message", (data) => {
+  // Remove welcome message if it exists
+  const welcome = document.querySelector('.chat-welcome-msg');
+  if (welcome) welcome.remove();
+  appendChatMessage(data);
+});
+
+function appendChatMessage(data) {
   const chatContainer = document.getElementById("chatMessages");
   if (!chatContainer) return;
 
   // Create message element
   const messageDiv = document.createElement("div");
-  messageDiv.className = "chat-message";
+  // Check if it's our own message
+  const isMe = data.playerName === myPlayerName;
+  messageDiv.className = `chat-message ${isMe ? "self" : "other"}`;
 
   messageDiv.innerHTML = `
-    <div class="chat-name">${escapeHtml(data.playerName)}:</div>
+    <div class="chat-name">${escapeHtml(data.playerName)}</div>
     <div class="chat-text">${escapeHtml(data.message)}</div>
+    ${data.timestamp ? `<div class="chat-time">${new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>` : ""}
   `;
 
   chatContainer.appendChild(messageDiv);
 
   // Auto-scroll to bottom
   chatContainer.scrollTop = chatContainer.scrollHeight;
-});
+}
 
 // Send button click
 document.addEventListener("DOMContentLoaded", () => {
@@ -2981,7 +2814,24 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
+  // Initial Welcome Message
+  setTimeout(initChatWelcome, 1000);
 });
+
+function initChatWelcome() {
+  const chatContainer = document.getElementById("chatMessages");
+  if (chatContainer && chatContainer.children.length === 0) {
+    const welcomeDiv = document.createElement("div");
+    welcomeDiv.className = "chat-welcome-msg";
+    welcomeDiv.innerHTML = `
+      <i class="fa-solid fa-comments"></i>
+      Welcome to the Live Auction Chat!<br>
+      Stay respectful and enjoy the bidding war.
+    `;
+    chatContainer.appendChild(welcomeDiv);
+  }
+}
 
 // Show name entry section if no name is set
 function checkAndShowNameEntry() {
@@ -2992,3 +2842,181 @@ function checkAndShowNameEntry() {
     }
   }
 }
+
+// ===================================
+// 🛑 CLOSE ROOM PERMANENTLY (ADMIN)
+// ===================================
+function closeRoomPermanently() {
+  if (!isAdmin) {
+    alert("Only the Host can close the room.");
+    return;
+  }
+
+  if (
+    confirm(
+      "⚠️ ARE YOU SURE?\n\nThis will DELETE the room and kick all players.\nThe game will NOT be resumable.",
+    )
+  ) {
+    socket.emit("close_room");
+  }
+}
+
+// 🚪 HANDLE ROOM CLOSED EVENT
+socket.on("room_closed", () => {
+  alert(
+    "🛑 HOST HAS CLOSED THE ROOM.\n\nThank you for playing!\nYou will now be redirected to the dashboard.",
+  );
+
+  // Clear local storage for this room
+  if (myRoomId) {
+    localStorage.removeItem(`ipl_team_${myRoomId}`);
+  }
+  localStorage.removeItem("auto_reconnect_room");
+  localStorage.removeItem("auto_reconnect_team");
+
+  window.location.href = "dashboard.html";
+});
+
+// ======================================================
+// 🏆 GO TO TOURNAMENT BUTTON HANDLER
+// ======================================================
+// Listen for when all squads are ready
+socket.on("all_squads_ready", () => {
+  console.log("✅ All squads submitted! Showing GO button");
+  
+  // Hide waiting message
+  const waitingMsg = document.getElementById("waitingMsg");
+  if (waitingMsg) {
+    waitingMsg.classList.add("d-none");
+  }
+  
+  // Show the GO TO TOURNAMENT button
+  const goBtn = document.getElementById("goToTournamentBtn");
+  if (goBtn) {
+    goBtn.classList.remove("d-none");
+  }
+});
+
+// Handle GO TO TOURNAMENT button click
+// Wrapped in DOMContentLoaded just in case, though usually script.js is at the end
+document.addEventListener("DOMContentLoaded", () => {
+  const goBtn = document.getElementById("goToTournamentBtn");
+  if (goBtn) {
+    goBtn.addEventListener("click", () => {
+      console.log("🚀 Navigating to tournament page...");
+      // Store current room and team if not already set
+      const roomId = myRoomId || localStorage.getItem("ipl_room_id");
+      const teamKey = mySelectedTeamKey || localStorage.getItem(`ipl_team_${roomId}`);
+      
+      if (roomId) localStorage.setItem("tournament_room_id", roomId);
+      if (teamKey) localStorage.setItem("tournament_team_key", teamKey);
+      
+      // Navigate to tournament page
+      window.location.href = "play.html";
+    });
+  }
+});
+
+// --- PLAYER STATS POPUP LOGIC ---
+document.getElementById('playerInfoBtn')?.addEventListener('click', () => {
+    let playerName;
+    if (typeof currentActivePlayer !== 'undefined' && currentActivePlayer) {
+        playerName = currentActivePlayer.name;
+    } else {
+        // Fallback: try to read from UI
+        playerName = document.getElementById('pName')?.innerText;
+    }
+    
+    if (playerName) showPlayerStats(playerName);
+});
+
+function showPlayerStats(playerName) {
+    if (!playerName) return;
+    
+    // Normalize name
+    playerName = playerName.trim();
+    if(playerName.includes(" ")) playerName = playerName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' '); // Capitalize
+
+    // getPlayerCareerStats is from stats.js (global)
+    let stats = {};
+    if (typeof getPlayerCareerStats === 'function') {
+        stats = getPlayerCareerStats(playerName);
+    } else {
+        console.warn('stats.js not loaded or getPlayerCareerStats missing');
+        stats = { matches:0, runs:0, wickets:0, hs:0, best:'-' };
+    }
+    
+    // Database info (for role/type if needed)
+    const db = (window.PLAYER_DATABASE && window.PLAYER_DATABASE[playerName]) || {};
+    
+    // Populate Modal
+    const nameEl = document.getElementById('statsPlayerName');
+    if(nameEl) nameEl.innerText = playerName.toUpperCase();
+    
+    const roleEl = document.getElementById('statsPlayerRole');
+    if(roleEl) roleEl.innerText = (db.role || (typeof currentActivePlayer !== 'undefined' ? currentActivePlayer.roleKey : 'Icon')).toUpperCase();
+    
+    const typeEl = document.getElementById('statsPlayerType');
+    if(typeEl) typeEl.innerText = (db.type || (typeof currentActivePlayer !== 'undefined' ? currentActivePlayer.playerType : 'Indian')) === 'Foreign' ? '✈️ OVERSEAS' : '🇮🇳 INDIAN';
+    
+    // Image
+    const imgEl = document.getElementById('statsPlayerImage');
+    if(imgEl) {
+        let imgUrl = '';
+        // Check currentActivePlayer if name matches
+        if (typeof currentActivePlayer !== 'undefined' && currentActivePlayer && currentActivePlayer.name === playerName && currentActivePlayer.img) {
+            imgUrl = currentActivePlayer.img;
+        } else if (stats.img) {
+            imgUrl = stats.img;
+        } else if (window.PLAYER_IMAGE_MAP) {
+            if (window.PLAYER_IMAGE_MAP[playerName]) {
+                imgUrl = window.PLAYER_IMAGE_MAP[playerName];
+            } else if (window.PLAYER_IMAGE_MAP[playerName.toLowerCase()]) {
+                imgUrl = window.PLAYER_IMAGE_MAP[playerName.toLowerCase()];
+            }
+        }
+        
+        if (imgUrl) {
+            imgEl.src = imgUrl;
+        } else {
+             imgEl.src = `https://ui-avatars.com/api/?name=${playerName}&background=random`;
+        }
+    }
+
+    // Stats Grid
+    const grid = document.getElementById('statsGrid');
+    if(grid) {
+        grid.innerHTML = '';
+        const createItem = (label, value, color='white') => `
+            <div class="col-4">
+                <div class="p-2 rounded" style="background: rgba(255,255,255,0.05);">
+                    <div class="text-white-50 small text-uppercase" style="font-size:0.6rem; letter-spacing:1px;">${label}</div>
+                    <div class="fw-bold text-${color} fs-4 display-font">${value}</div>
+                </div>
+            </div>
+        `;
+
+        let html = '';
+        html += createItem('MATCHES', stats.matches || 0, 'white');
+        html += createItem('RUNS', stats.runs || 0, 'warning');
+        html += createItem('WICKETS', stats.wickets || 0, 'info');
+        html += createItem('HIGH SCORE', stats.hs || 0, 'white');
+        html += createItem('BEST BOWL', stats.best || '-', 'white');
+        
+        // NEW SKILLS
+        const pDb = (typeof PLAYER_DATABASE !== 'undefined') ? (PLAYER_DATABASE[playerName] || {}) : {};
+        if (pDb.bat) html += createItem('BAT SKILL', pDb.bat, 'warning');
+        if (pDb.bowl) html += createItem('BOWL SKILL', pDb.bowl, 'info');
+        
+        grid.innerHTML = html;
+    }
+    
+    // Show Modal
+    const modalEl = document.getElementById('playerStatsModal');
+    if(modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+}
+
+

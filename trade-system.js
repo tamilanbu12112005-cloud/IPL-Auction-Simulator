@@ -54,13 +54,15 @@ class TradeSystem {
 
   init() {
     // Initialize when socket is ready
-    if (window.socket) {
-      this.setupSocketListeners();
-    } else {
-      document.addEventListener("DOMContentLoaded", () =>
-        this.setupSocketListeners(),
-      );
-    }
+    const tryInit = () => {
+      if (window.socket) {
+        this.setupSocketListeners();
+      } else {
+        console.warn("[TradeSystem] Waiting for socket...");
+        setTimeout(tryInit, 500);
+      }
+    };
+    tryInit();
 
     // Add Trade Button if not exists (in case HTML didn't add it)
     this.ensureTradeButton();

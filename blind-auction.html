@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="live-stats.css">
     <link rel="stylesheet" href="chat-enhancements.css">
     <link rel="stylesheet" href="pwa-styles.css">
-    <link rel="stylesheet" href="predict-price-game.css">
+
     <link rel="stylesheet" href="trade-center.css">
 
     <link rel="manifest" href="manifest.json">
@@ -461,6 +461,7 @@
                         <input type="password" id="createPass" style="color: white;" class="form-control lobby-input"
                             maxlength="4" placeholder="****">
                     </div>
+                   
                     <button id="doCreateBtn" class="btn btn-gold w-100 btn-custom mt-2">CREATE ROOM</button>
                 </div>
                 <div class="tab-pane fade" id="joinTab">
@@ -715,6 +716,10 @@
                 <div class="p-3 bg-dark border-top border-secondary text-center">
                     <div id="waitingMsg" class="d-none text-info mb-2 fs-4">WAITING FOR OTHER TEAMS...</div>
                     <button id="submitSquadBtn" class="btn btn-gold btn-lg w-50" disabled>SUBMIT SQUAD</button>
+                    <button id="goToTournamentBtn" class="btn btn-success btn-lg w-50 mt-3 d-none"
+                        style="font-size: 1.3rem; font-weight: 700; padding: 15px; animation: pulse 1.5s infinite;">
+                        🏆 GO TO TOURNAMENT →
+                    </button>
                 </div>
             </div>
         </div>
@@ -842,9 +847,9 @@
                     <i class="bi bi-mic-mute-fill"></i>
                 </button>
                 <span id="adminHeaderControls" class="admin-only d-flex gap-2">
-                    <button id="autoTestBtn" class="btn btn-sm btn-outline-danger" style="border-style:dashed;">
+                    <!-- <button id="autoTestBtn" class="btn btn-sm btn-outline-danger" style="border-style:dashed;">
                         <i class="bi bi-robot"></i> AUTO
-                    </button>
+                    </button> -->
                     <button id="endAuctionBtn" class="btn-custom btn-action btn-end-auction">END</button>
                     <button id="timerToggleBtn" class="btn-custom btn-action"><i class="bi bi-pause-fill"></i></button>
                 </span>
@@ -925,6 +930,19 @@
                         style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); max-height: 55vh; overflow-y: auto; padding-right: 5px;">
                     </div>
 
+                    <!-- Waiting State for Players who joined a team -->
+                    <div id="waitingState" class="text-center p-4 border border-info rounded bg-dark bg-opacity-50 mt-3"
+                        style="display: none;">
+                        <div class="spinner-border text-info mb-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h4 class="text-white display-font" id="waitingTeamName">YOUR TEAM: ---</h4>
+                        <p class="text-info mb-0">Successfully joined! Please wait for the host to start the auction.
+                        </p>
+                        <button class="btn btn-sm btn-outline-danger mt-3"
+                            onclick="requestReclaim(mySelectedTeamKey)">Leave Team / Change</button>
+                    </div>
+
                     <div class="mt-4">
                         <button id="startBtn" class="btn btn-gold w-100 py-3 fs-4 btn-custom admin-only" disabled>
                             WAITING FOR TEAMS...
@@ -994,7 +1012,14 @@
                             <h1 id="pName" class="display-font text-white mb-0"
                                 style="font-size: 3.5rem; text-shadow: 0 5px 15px rgba(0,0,0,0.8); line-height: 1;">
                                 VIRAT KOHLI</h1>
-                            <div id="pCat" class="text-info text-uppercase letter-spacing-2 mb-3">Indian Batter
+                            <div class="d-flex justify-content-center align-items-center mb-3">
+                                <div id="pCat" class="text-info text-uppercase letter-spacing-2 me-2">Indian Batter
+                                </div>
+                                <button id="playerInfoBtn"
+                                    class="btn btn-sm btn-outline-warning rounded-circle p-0 d-flex align-items-center justify-content-center"
+                                    style="width: 28px; height: 28px; border-width: 2px;" title="View Career Stats">
+                                    <i class="bi bi-graph-up"></i>
+                                </button>
                             </div>
                             <div class="d-flex align-items-center justify-content-center gap-4 mt-1">
                                 <div class="text-end">
@@ -1168,7 +1193,45 @@
             }
         }
     </script>
+
+    <!-- Player Stats Modal -->
+    <div class="modal fade" id="playerStatsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content glass-panel text-white"
+                style="border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(20, 20, 30, 0.95);">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold" id="statsPlayerName" style="color: var(--accent-color);">PLAYER NAME
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex align-items-center mb-4">
+                        <img id="statsPlayerImage" src="" alt="Player" class="rounded-circle me-3"
+                            style="width: 80px; height: 80px; object-fit: cover; border: 3px solid var(--accent-color); box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);">
+                        <div>
+                            <div id="statsPlayerRole" class="text-uppercase fw-bold text-light mb-1"
+                                style="font-size: 0.9rem;">ROLE</div>
+                            <span id="statsPlayerType" class="badge rounded-pill bg-gradient"
+                                style="background: linear-gradient(45deg, #ff6b6b, #ff8e53);">TYPE</span>
+                        </div>
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div id="statsGrid" class="row g-3 text-center">
+                        <!-- Dynamic Stats will be injected here -->
+                    </div>
+
+                    <div class="mt-3 text-center text-muted small" id="statsNote">
+                        * Career IPL Stats (Approx)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <script src="auth.js"></script>
+    <script src="player-database.js"></script>
+    <script src="stats.js"></script>
     <script src="blind-auction-script.js?v=2"></script>
     <script src="voice-chat.js"></script>
     <script src="live-stats.js?v=2"></script>
@@ -1176,7 +1239,7 @@
     <script src="effects.js"></script>
     <script src="pwa-manager.js"></script>
     <script src="trade-system.js"></script>
-    <script src="predict-price-game.js"></script>
+
 
 
     <!-- Replay System removed as per request -->

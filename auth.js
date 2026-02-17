@@ -118,9 +118,51 @@ const Auth = {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         localStorage.removeItem("userEmail");
+        
+        // ✨ Try to restore Guest Session if playerId exists
+        const pid = localStorage.getItem("ipl_auction_player_id");
+        if (pid) {
+            this.restoreGuestSession(pid);
+        }
+        
         this.handleLoggedOut();
   }
 },
+
+  async restoreGuestSession(pid) {
+      try {
+          console.log("☁️  Fetching Guest Session from MongoDB...", pid);
+          const response = await fetch(`/api/auth/session/get/${pid}`);
+          if (response.ok) {
+              const session = await response.json();
+              this.applySessionToLocalStorage(session);
+              console.log("✅ Guest Session restored from MongoDB");
+          }
+      } catch (err) {
+          console.warn("Guest session restore failed", err);
+      }
+  },
+
+  applySessionToLocalStorage(session) {
+      if (!session) return;
+      
+      if (session.playerId) {
+          let pid = session.playerId;
+          if (pid.startsWith("user_user_")) pid = pid.replace("user_user_", "user_");
+          localStorage.setItem("ipl_auction_player_id", pid);
+      }
+      if (session.playerName) localStorage.setItem("ipl_auction_player_name", session.playerName);
+      if (session.activeRoomId) localStorage.setItem("auto_reconnect_room", session.activeRoomId);
+      if (session.activeTeamKey) localStorage.setItem("auto_reconnect_team", session.activeTeamKey);
+      if (session.lastRoomId) localStorage.setItem("ipl_last_room", session.lastRoomId);
+      if (session.lastPass) localStorage.setItem("ipl_last_pass", session.lastPass);
+      
+      if (session.teamKeys) {
+          for (const [roomId, key] of Object.entries(session.teamKeys)) {
+              localStorage.setItem(`ipl_team_${roomId}`, key);
+          }
+      }
+  },
 
   async handleLoggedIn() {
     const path = window.location.pathname;
@@ -128,28 +170,12 @@ const Auth = {
 
     // ✨ Step 1: Sync from MongoDB to LocalStorage on login
     try {
-        console.log("☁️  Fetching session from MongoDB...");
-        const response = await fetch(`/api/auth/session/get/${email}`);
+        console.log("☁️  Fetching session from MongoDB for:", email);
+        const response = await fetch(`/api/auth/session/get/${encodeURIComponent(email)}`);
         if (response.ok) {
             const session = await response.json();
-            
-            // Strip any legacy double-prefixes if found in MongoDB session
-            if (session.playerId) {
-                let pid = session.playerId;
-                if (pid.startsWith("user_user_")) pid = pid.replace("user_user_", "user_");
-                localStorage.setItem("ipl_auction_player_id", pid);
-            }
-            if (session.activeRoomId) localStorage.setItem("auto_reconnect_room", session.activeRoomId);
-            if (session.activeTeamKey) localStorage.setItem("auto_reconnect_team", session.activeTeamKey);
-            if (session.lastRoomId) localStorage.setItem("ipl_last_room", session.lastRoomId);
-            if (session.lastPass) localStorage.setItem("ipl_last_pass", session.lastPass);
-            
-            if (session.teamKeys) {
-                for (const [roomId, key] of Object.entries(session.teamKeys)) {
-                    localStorage.setItem(`ipl_team_${roomId}`, key);
-                }
-            }
-            console.log("✅ Session restored from MongoDB");
+            this.applySessionToLocalStorage(session);
+            console.log("✅ Session restored from MongoDB (User)");
         }
     } catch (err) {
         console.error("❌ Failed to load session from MongoDB", err);
@@ -174,13 +200,17 @@ const Auth = {
 
   // ✨ Helper to sync LocalStorage TO MongoDB
   async syncSessionToMongoDB() {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user || !user.email) return;
+      const user = JSON.parse(localStorage.getItem("user") || "null");
+      const playerId = localStorage.getItem("ipl_auction_player_id");
+      
+      if (!user && !playerId) return;
 
       const sessionData = {
-          email: user.email,
+          email: user ? user.email : null,
+          playerId: playerId,
           session: {
-              playerId: localStorage.getItem("ipl_auction_player_id"),
+              playerId: playerId,
+              playerName: localStorage.getItem("ipl_auction_player_name"),
               activeRoomId: localStorage.getItem("auto_reconnect_room"),
               activeTeamKey: localStorage.getItem("auto_reconnect_team"),
               lastRoomId: localStorage.getItem("ipl_last_room"),
@@ -192,19 +222,19 @@ const Auth = {
       // Find all room team keys
       for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
-          if (key.startsWith("ipl_team_")) {
+          if (key && key.startsWith("ipl_team_")) {
               const roomId = key.replace("ipl_team_", "");
               sessionData.session.teamKeys[roomId] = localStorage.getItem(key);
           }
       }
 
       try {
-          await fetch("/api/auth/session/sync", {
+          const res = await fetch("/api/auth/session/sync", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(sessionData)
           });
-          console.log("☁️  Session synced to MongoDB");
+          if (res.ok) console.log("☁️  Session synced to MongoDB");
       } catch (err) {
           console.error("❌ MongoDB sync failed", err);
       }
@@ -212,12 +242,13 @@ const Auth = {
 
   // NEW: Check for active auction and auto-reconnect
   checkAndReconnectToAuction() {
+    if (typeof io === 'undefined') return;
     const pid = localStorage.getItem("ipl_auction_player_id");
     if (!pid) return; // Cannot check without PID
 
     // Create temporary socket connection to check for active room
     const tempSocket = io({
-      transports: ["websocket"],
+      transports: ["polling", "websocket"],
       auth: {
         playerId: pid
       }
@@ -261,9 +292,12 @@ const Auth = {
     setTimeout(() => {
       if (tempSocket.connected) {
         tempSocket.disconnect();
-        if (!window.location.pathname.includes("dashboard.html")) {
+      }
+      
+      // Always redirect if we are still here after timeout
+      if (!window.location.pathname.includes("dashboard.html")) {
+          console.log("⚠️ Auth check timed out. Redirecting to dashboard...");
           window.location.href = "dashboard.html";
-        }
       }
     }, 3000);
   },
@@ -297,7 +331,7 @@ const Auth = {
             });
         }
     } else {
-        const protectedPages = ["dashboard.html", "ipl.html", "blind-auction.html", "profile.html", "play.html"];
+        const protectedPages = ["dashboard.html", "ipl.html", "blind-auction.html", "profile.html"];
         const isProtected = protectedPages.some(p => path.includes(p));
         if (isProtected) {
             window.location.href = "intro.html"; // Redirect to intro for flow

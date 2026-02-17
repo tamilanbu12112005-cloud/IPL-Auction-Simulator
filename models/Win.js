@@ -85,6 +85,42 @@ const winSchema = new mongoose.Schema({
         nrr: Number
     }],
     
+    // Team Squads / Rosters
+    rosters: [{
+        teamName: String,
+        teamKey: String,
+        playerName: String,
+        players: [{
+            name: String,
+            role: String,
+            price: Number,
+            type: String
+        }]
+    }],
+
+    // Match History
+    leagueMatches: [{
+        t1: String,
+        t2: String,
+        winner: String,
+        margin: String,
+        score1: String,
+        score2: String,
+        type: String, // League
+        batFirst: String
+    }],
+
+    playoffs: [{
+        t1: String,
+        t2: String,
+        winner: String,
+        margin: String,
+        score1: String,
+        score2: String,
+        type: String, // Qualifier 1, Final, etc.
+        batFirst: String
+    }],
+    
     // Additional Data
     metadata: {
         budget: Number,

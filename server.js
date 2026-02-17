@@ -14,10 +14,30 @@ const User = require("./models/User");
 const Win = require("./models/Win");
 const featureIntegration = require("./feature-integration");
 const AI = require("./ai");
+const PLAYER_DATABASE = require("./player-database").PLAYER_DATABASE;
+const NORMALIZED_PLAYER_DB = {};
+if (PLAYER_DATABASE) {
+  Object.keys(PLAYER_DATABASE).forEach((k) => {
+    NORMALIZED_PLAYER_DB[k.toLowerCase()] = PLAYER_DATABASE[k];
+  });
+}
+
+function getPlayerFromDB(name) {
+  if (!name) return { name: "Unknown" };
+  return (
+    PLAYER_DATABASE[name] || NORMALIZED_PLAYER_DB[name.toLowerCase()] || { name }
+  );
+}
+const liveMatchModule = require("./live-match");
 
 console.log("-----------------------------------------");
 console.log("SERVER STARTUP ENV CHECK:");
-console.log("MONGODB_URI:", process.env.MONGODB_URI ? "LOADED (Starts with " + process.env.MONGODB_URI.substring(0, 10) + "...)" : "UNDEFINED");
+console.log(
+  "MONGODB_URI:",
+  process.env.MONGODB_URI
+    ? "LOADED (Starts with " + process.env.MONGODB_URI.substring(0, 10) + "...)"
+    : "UNDEFINED",
+);
 console.log("-----------------------------------------");
 
 const app = express();
@@ -32,49 +52,91 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    database: mongoConnected ? "connected" : "disconnected",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// NEW: API Route to fetch Match Details
+app.get('/api/matches/:roomId', async (req, res) => {
+    const rid = req.params.roomId;
+    console.log(`📡 [API] Fetching Match Details for Room: ${rid}`);
+    try {
+        // Find most recent win record for this roomId
+        const winRecord = await Win.findOne({ roomId: rid }).sort({ playedAt: -1 });
+        
+        if (!winRecord) {
+            console.warn(`⚠️  [API] No Win record found for Room: ${rid}`);
+            return res.status(404).json({ message: 'Match details not found' });
+        }
+        
+        console.log(`✅ [API] Found Win record for ${rid} (Played: ${winRecord.playedAt})`);
+        res.json(winRecord);
+    } catch (err) {
+        console.error(`❌ [API] Error fetching match details for ${rid}:`, err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Endpoint removed (Test residue)
+
 // MongoDB Connection (Non-blocking with retry and monitoring)
 let mongoConnected = false;
 
 function connectMongoDB(retries = 3) {
   mongoose
     .connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 10000, // 10 second timeout for initial selection
+      serverSelectionTimeoutMS: 30000, // Increased to 30s for more stable cloud connection
       socketTimeoutMS: 45000,
       maxPoolSize: 10, // Connection pool
       retryWrites: true,
     })
     .then(() => {
       mongoConnected = true;
-      console.log("✅ [DATABASE] Connected to MongoDB Atlas - Database: auction_db");
+      console.log(
+        "✅ [DATABASE] Connected to MongoDB Atlas - Database: auction_db",
+      );
       loadRoomsFromDB(); // Function call moved here to ensure DB is ready
     })
     .catch((err) => {
       mongoConnected = false;
       console.warn("⚠️  [DATABASE] Connection Failed:", err.message);
-      
+
       if (retries > 0) {
-        console.log(`   [DATABASE] Retrying connection in 5 seconds... (${retries} attempts left)`);
+        console.log(
+          `   [DATABASE] Retrying connection in 5 seconds... (${retries} attempts left)`,
+        );
         setTimeout(() => connectMongoDB(retries - 1), 5000);
       } else {
-        console.error("❌ [DATABASE] FATAL: Exhausted all retries. Persistent storage disabled.");
-        require('fs').writeFileSync('db-error.log', `[${new Date().toISOString()}] ${err.stack || err.message}\n`, { flag: 'a' });
+        console.error(
+          "❌ [DATABASE] FATAL: Exhausted all retries. Persistent storage disabled.",
+        );
+        require("fs").writeFileSync(
+          "db-error.log",
+          `[${new Date().toISOString()}] ${err.stack || err.message}\n`,
+          { flag: "a" },
+        );
       }
     });
 }
 
 // Monitor connection events
-mongoose.connection.on('disconnected', () => {
+mongoose.connection.on("disconnected", () => {
   console.warn("⚠️  MongoDB disconnected. Attempting to reconnect...");
   mongoConnected = false;
   setTimeout(() => connectMongoDB(2), 3000);
 });
 
-mongoose.connection.on('reconnected', () => {
+mongoose.connection.on("reconnected", () => {
   console.log("✅ MongoDB reconnected!");
   mongoConnected = true;
 });
 
-mongoose.connection.on('error', (err) => {
+mongoose.connection.on("error", (err) => {
   console.error("❌ MongoDB error:", err.message);
   // Don't close on transient errors - mongoose handles reconnection
 });
@@ -82,23 +144,24 @@ mongoose.connection.on('error', (err) => {
 // Initial connection
 connectMongoDB();
 
-
 // Method Change: Create Server
 const server = http.createServer(app);
 
 // Method Change: Socket.io setup for production environment
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow connections from any domain (crucial for hosting)
+    origin: "*", 
     methods: ["GET", "POST"],
   },
   pingTimeout: 60000,
+  allowEIO3: true, // Support older clients
+  transports: ["polling", "websocket"] // Explicitly support both
 });
 
 const AUCTION_TIMER_SECONDS = 10;
 
 // Method Change: GoDaddy assigns a specific named pipe or port.
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT || 3000;
 
 // --- SERVE FILES ---
 app.use(express.static(path.join(__dirname)));
@@ -131,10 +194,52 @@ function isAdmin(socket) {
 let rooms = {};
 
 // Initialize features
-const predictGame = featureIntegration.setupPredictPriceGame(io, rooms);
-const tradeSystem = featureIntegration.setupTradeSystem(io, rooms); // Initialize Trade System
+
+const tradeSystem = featureIntegration.setupTradeSystem(io, rooms, (roomId) => saveRoomToDB(roomId, true)); // Initialize Trade System
 const achievements = featureIntegration.setupAchievementSystem(io);
 const analytics = featureIntegration.setupAnalytics(io, rooms);
+const liveMatch = liveMatchModule.setupLiveMatch(io, rooms);
+
+// --- DB SANITIZATION HELPERS ---
+function deepSanitizePlayers(input) {
+  if (!input) return [];
+  let data = input;
+  // If it's a string, try to parse it
+  if (typeof data === "string") {
+    try { data = JSON.parse(data); } catch (e) { return []; }
+  }
+  // Now it must be an array
+  if (!Array.isArray(data)) return [];
+  
+  // Recursively sanitize each element (Mongoose CastError prevention)
+  return data.map(item => {
+    if (typeof item === "string") {
+       try { return JSON.parse(item); } catch (e) { return null; }
+    }
+    return item;
+  }).filter(Boolean);
+}
+
+function deepSanitizeTeams(input) {
+  if (!input) return [];
+  let data = input;
+  if (typeof data === "string") {
+    try { data = JSON.parse(data); } catch (e) { return []; }
+  }
+  if (!Array.isArray(data)) return [];
+
+  return data.map(team => {
+    let t = team;
+    if (typeof t === "string") {
+       try { t = JSON.parse(t); } catch (e) { return null; }
+    }
+    if (!t) return null;
+    
+    // Sanitize Roster inside team
+    if (t.roster) t.roster = deepSanitizePlayers(t.roster);
+    return t;
+  }).filter(Boolean);
+}
 
 // Load rooms from DB on startup (Persistence)
 async function loadRoomsFromDB() {
@@ -147,8 +252,20 @@ async function loadRoomsFromDB() {
   try {
     const dbRooms = await Room.find({}).sort({ createdAt: -1 });
     dbRooms.forEach((dr) => {
+      // PRO-TIP: Don't overwrite rooms that are CURRENTLY ACTIVE in memory
+      // This prevents crashes if DB connects/reconnects while a game is running
+      if (rooms[dr.roomId]) {
+          console.log(`ℹ️ [DATABASE] skipping restoration for active room ${dr.roomId}`);
+          return;
+      }
+
       // Need to convert Mongoose Doc to Plain JS Object fully
       const roomObj = dr.toObject();
+
+      // Fix: Deep sanitize fields to prevent Mongoose CastErrors
+      if (roomObj.players) roomObj.players = deepSanitizePlayers(roomObj.players);
+      if (roomObj.teams) roomObj.teams = deepSanitizeTeams(roomObj.teams);
+      if (roomObj.auctionQueue) roomObj.auctionQueue = deepSanitizePlayers(roomObj.auctionQueue);
 
       // Restore runtime properties that aren't in DB Schema
       rooms[dr.roomId] = {
@@ -162,14 +279,31 @@ async function loadRoomsFromDB() {
         timerPaused: true,
         sellingInProgress: false,
         auctionQueue: roomObj.auctionQueue || [],
+        players: roomObj.players, // Now sanitized
         auctionIndex: roomObj.auctionIndex || 0,
         auctionState: roomObj.auctionState || "LOBBY",
-        // Mark as active if auction is ongoing (not completed)
-        state: { 
-          isActive: !roomObj.completedAt && roomObj.auctionState !== "RESULTS" 
+        // Mark as active if auction is ongoing
+        state: {
+          isActive: roomObj.auctionState === "AUCTION" || roomObj.auctionState === "BLIND_AUCTION",
         },
         playerNames: roomObj.playerNames || {},
         squads: roomObj.squads || {},
+        chatHistory: roomObj.chatHistory || [],
+        tradeRequests: roomObj.tradeRequests || [],
+        tradeHistory: roomObj.tradeHistory || [],
+        
+        // Initialize blind auction state if it's a blind room
+        blindAuction: roomObj.gameType === 'blind' ? {
+          exchangeEnabled: true,
+          bidTimer: 12,
+          exchangeTimer: 10,
+          currentBids: {},
+          currentPlayer: null,
+          timerInterval: null,
+          requests: {},
+          isContestActive: false,
+          contestBids: {},
+        } : undefined
       };
     });
     console.log(`✅ Restored ${dbRooms.length} rooms from database.`);
@@ -206,15 +340,23 @@ async function saveRoomToDB(roomId, delayed = false) {
       adminPlayerId: r.adminPlayerId,
       auctionQueue: r.auctionQueue,
       auctionIndex: r.auctionIndex,
-      players: r.players, // Current players list status
+      // players: r.players, // Current players list status
       auctionState: r.auctionState,
       currentLotIndex: r.currentLotIndex,
       currentSetIndex: r.currentSetIndex,
       sets: r.sets,
       playerNames: r.playerNames,
       squads: r.squads,
+      chatHistory: r.chatHistory || [],
+      tradeRequests: r.tradeRequests || [],
+      tradeHistory: r.tradeHistory || [],
       lastActivity: new Date(),
     };
+
+    // Fix: Deep sanitize fields before DB save
+    roomData.players = deepSanitizePlayers(r.players);
+    roomData.teams = deepSanitizeTeams(r.teams);
+    roomData.auctionQueue = deepSanitizePlayers(r.auctionQueue);
 
     // Upsert: Update if exists, Insert if new
     await Room.findOneAndUpdate({ roomId }, roomData, {
@@ -226,39 +368,66 @@ async function saveRoomToDB(roomId, delayed = false) {
   }
 }
 
-// Auto-Cleanup: Remove from DB 1 minute after Results
-function scheduleRoomCleanup(roomId) {
-  console.log(`⏳ Scheduling cleanup for Room ${roomId} in 60 seconds...`);
-  setTimeout(async () => {
-    try {
-      if (mongoose.connection.readyState === 1) {
-        await Room.deleteOne({ roomId });
-        console.log(`🗑️  Room ${roomId} deleted from Database.`);
-      }
-      delete rooms[roomId]; // Clean from memory too
-      console.log(`🧹 Room ${roomId} cleaned from memory.`);
-    } catch (e) {
-      console.error("Cleanup failed:", e);
+// 🧹 AUTO-CLEANUP INACTIVE ROOMS (Store for 5 days)
+setInterval(async () => {
+    const FIVE_DAYS = 5 * 24 * 60 * 60 * 1000;
+    const now = new Date();
+    
+    // 1. Clean Memory (Unload from RAM if inactive for 4 hours, but keep in DB)
+    for (const roomId in rooms) {
+        const r = rooms[roomId];
+        const lastActive = r.lastActivity || r.createdAt || now;
+        if (now - lastActive > 4 * 60 * 60 * 1000) {
+            console.log(`🧹 Unloading inactive room from memory: ${roomId}`);
+            await saveRoomToDB(roomId);
+            delete rooms[roomId];
+        }
     }
-  }, 60000); // 1 Minute
+    
+    // 2. Archive DB (Mark as completed if sitting in DB for > 5 days without activity)
+    try {
+        const cutoff = new Date(Date.now() - FIVE_DAYS);
+        const result = await Room.updateMany(
+            { 
+                lastActivity: { $lt: cutoff },
+                completedAt: { $exists: false }
+            },
+            { 
+                $set: { 
+                    completedAt: new Date(),
+                    auctionState: "CLOSED"
+                }
+            }
+        );
+        if (result.modifiedCount > 0) {
+            console.log(`📦 Archived ${result.modifiedCount} old rooms.`);
+        }
+    } catch (e) {
+        console.error("Error in DB cleanup:", e);
+    }
+}, 60 * 60 * 1000); // Run every hour
+
+// Function kept for backward compatibility but modified to NOT delete
+function scheduleRoomCleanup(roomId) {
+  console.log(`ℹ️ Room ${roomId} finished. It will be stored in MongoDB for 5 days.`);
+  // We no longer delete immediately. MongoDB TTL will handle it after 5 days.
 }
 
 // --- TIMER LOGIC ---
 // --- TIMER LOGIC ---
-function startTimer(roomId, isResume = false) {
+function startTimer(roomId) {
   const r = rooms[roomId];
   if (!r) return;
 
-  // New Bid or Next Lot (Not Resume)
-  if (!isResume) {
-    if (r.timerInterval && r.timer > AUCTION_TIMER_SECONDS - 2) return; // Debounce
-    r.timer = AUCTION_TIMER_SECONDS;
-  }
+  // New Bid or Next Lot
+  if (r.timerInterval && r.timer > AUCTION_TIMER_SECONDS - 2) return; // Debounce
+  r.timer = AUCTION_TIMER_SECONDS;
 
   // Clear existing interval to avoid duplicates
   if (r.timerInterval) clearInterval(r.timerInterval);
 
   r.timerPaused = false;
+  r.timerEndTime = Date.now() + r.timer * 1000; // Fix for sync
 
   // Notify clients
   io.to(roomId).emit("timer_tick", r.timer);
@@ -267,37 +436,7 @@ function startTimer(roomId, isResume = false) {
   // Use simple decrement to allow easy pausing without complexity
   r.timerInterval = setInterval(() => {
     if (r.timerPaused) {
-      return;
-    }
-
-    r.timer--;
-
-    io.to(roomId).emit("timer_tick", r.timer);
-
-    // Check Sale
-    if (r.timer <= 0) {
-      processSale(roomId);
-    }
-  }, 1000);
-}
-
-// Resume timer without resetting the countdown
-function resumeTimer(roomId) {
-  const r = rooms[roomId];
-  if (!r) return;
-
-  // Clear existing interval to avoid duplicates
-  if (r.timerInterval) clearInterval(r.timerInterval);
-
-  r.timerPaused = false;
-
-  // Notify clients with CURRENT timer value
-  io.to(roomId).emit("timer_tick", r.timer);
-  io.to(roomId).emit("timer_status", false);
-
-  // Use simple decrement to allow easy pausing without complexity
-  r.timerInterval = setInterval(() => {
-    if (r.timerPaused) {
+      r.timerEndTime = Date.now() + r.timer * 1000; // Adjust end time while paused
       return;
     }
 
@@ -354,7 +493,6 @@ function processSale(roomId, source = "UNKNOWN") {
         teamName: team.name,
         teamId: team.bidKey,
       });
-      predictGame.endPredictGame(roomId, r.currentPlayer, soldPrice);
     }
   }
 
@@ -408,9 +546,6 @@ function startNextLot(roomId) {
     lotNumber: r.auctionIndex + 1,
   });
 
-  // Start Predict Price Game
-  predictGame.startPredictGame(roomId, r.currentPlayer);
-
   // Start fresh timer
   startTimer(roomId, false);
 }
@@ -425,27 +560,27 @@ io.use((socket, next) => {
 // --- SOCKET HANDLERS ---
 io.on("connection", (socket) => {
   console.log(`User Connected: ${socket.id} (PID: ${socket.playerId})`);
-  
+
   socket.on("pingServer", () => socket.emit("pongServer"));
 
-  const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+  const ip =
+    socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
   console.log(`[CONN] ${socket.id} (${socket.playerId}) IP: ${ip}`);
 
   socket.on("submit_squads", async (data) => {
     // data contains { teamA: [...], teamB: [...] }
     const matchResult = await AI.simulateMatch(data.teamA, data.teamB);
-        
-    // Send the result ONLY to the players in this match
-    io.emit('display_result', matchResult);
+
+    // Send the result ONLY to the players in this specific session/room
+    const roomId = getRoomId(socket);
+    if (roomId) {
+      io.to(roomId).emit("display_result", matchResult);
+    } else {
+      socket.emit("display_result", matchResult);
+    }
   });
 
   // --- NEW FEATURES: INTEGRATION HANDLERS ---
-
-  // Predict Price Game
-  socket.on("submit_prediction", (data) => {
-    const roomId = getRoomId(socket);
-    if (roomId) predictGame.submitPrediction(socket, roomId, data);
-  });
 
   // 🔍 GET ACTIVE GAMES FOR USER (DASHBOARD)
   socket.on("get_my_active_games", async (userData) => {
@@ -459,20 +594,27 @@ io.on("connection", (socket) => {
         return;
       }
 
+      // 🛡️ Guard: Ensure DB is connected
+      if (mongoose.connection.readyState !== 1) {
+        console.warn(`⏳ DB not ready for get_my_active_games (readyState: ${mongoose.connection.readyState})`);
+        socket.emit("active_games_list", []);
+        return;
+      }
+
       console.log(`🔍 Searching active games for: ${userEmail} / ${playerId}`);
 
       // Query DB for active rooms involving this user
-      // We look for rooms where auctionState is NOT completed ('RESULTS' usually end state, 
+      // We look for rooms where auctionState is NOT completed ('RESULTS' usually end state,
       // but let's check completedAt for sure)
-      
+
       const query = {
         $or: [
           { "teams.ownerEmail": userEmail },
           { "teams.ownerPlayerId": playerId },
-          { "teams.playerEmail": userEmail } // Sometimes stored here
+          { "teams.playerEmail": userEmail }, // Sometimes stored here
         ],
         completedAt: { $exists: false }, // Only incomplete games
-        auctionState: { $ne: "RESULTS" } // Double check state
+        auctionState: { $ne: "RESULTS" }, // Double check state
       };
 
       const activeRooms = await Room.find(query)
@@ -481,12 +623,13 @@ io.on("connection", (socket) => {
         .limit(5);
 
       // Map to simplified object for frontend
-      const gamesList = activeRooms.map(r => {
+      const gamesList = activeRooms.map((r) => {
         // Find user's specific team in this room
-        const team = r.teams.find(t => 
-          (userEmail && t.ownerEmail === userEmail) || 
-          (playerId && t.ownerPlayerId === playerId) ||
-          (userEmail && t.playerEmail === userEmail)
+        const team = r.teams.find(
+          (t) =>
+            (userEmail && t.ownerEmail === userEmail) ||
+            (playerId && t.ownerPlayerId === playerId) ||
+            (userEmail && t.playerEmail === userEmail),
         );
 
         return {
@@ -495,18 +638,217 @@ io.on("connection", (socket) => {
           state: r.auctionState,
           teamName: team ? team.name : "Unknown",
           teamId: team ? team.bidKey : null,
-          lastActive: r.lastActivity
+          lastActive: r.lastActivity,
         };
       });
 
       console.log(`✅ Found ${gamesList.length} active games for user.`);
       socket.emit("active_games_list", gamesList);
-
     } catch (e) {
       console.error("❌ Error fetching active games:", e);
       socket.emit("active_games_list", []);
     }
   });
+
+  // � GET COMPLETED GAMES FOR USER
+  socket.on("get_my_completed_games", async (userData) => {
+    try {
+      const userEmail = userData.email;
+      const playerId = userData.id || socket.playerId;
+
+      if (!userEmail && !playerId) {
+        socket.emit("completed_games_list", []);
+        return;
+      }
+
+      // 🛡️ Guard: Ensure DB is connected
+      if (mongoose.connection.readyState !== 1) {
+        console.warn(`⏳ DB not ready for get_my_completed_games (readyState: ${mongoose.connection.readyState})`);
+        socket.emit("completed_games_list", []);
+        return;
+      }
+
+      console.log(`📜 Searching COMPLETED games for: ${userEmail} / ${playerId}`);
+
+      const query = {
+        $or: [
+          { "teams.ownerEmail": userEmail },
+          { "teams.ownerPlayerId": playerId },
+          { "teams.playerEmail": userEmail },
+        ],
+        completedAt: { $exists: true }, // ONLY completed games
+      };
+
+      const completedRooms = await Room.find(query)
+        .select("roomId gameType auctionState teams createdAt completedAt lastActivity")
+        .sort({ completedAt: -1 })
+        .limit(10); // More history for completed ones
+
+      const gamesList = completedRooms.map((r) => {
+        const team = r.teams.find(
+          (t) =>
+            (userEmail && (t.ownerEmail === userEmail || t.playerEmail === userEmail)) ||
+            (playerId && t.ownerPlayerId === playerId)
+        );
+
+        return {
+          roomId: r.roomId,
+          gameType: r.gameType || "normal",
+          state: r.auctionState,
+          teamName: team ? team.name : "Unknown",
+          teamId: team ? team.bidKey : null,
+          finishedAt: r.completedAt,
+        };
+      });
+
+      socket.emit("completed_games_list", gamesList);
+    } catch (e) {
+      console.error("❌ Error fetching completed games:", e);
+      socket.emit("completed_games_list", []);
+    }
+  });
+
+
+  // �🗑️ DISMISS ACTIVE GAME (Remove from list/MongoDB)
+  socket.on("dismiss_active_game", async (data) => {
+    try {
+      const { roomId, email, playerId } = data;
+      const r = rooms[roomId];
+      
+      console.log(`🗑️ Dismiss request for room ${roomId} by ${email || playerId}`);
+
+      if (r) {
+        // Find team owned by user
+        const team = r.teams.find(t => 
+          (email && t.ownerEmail === email) || 
+          (playerId && t.ownerPlayerId === playerId) ||
+          (email && t.playerEmail === email)
+        );
+
+        if (team) {
+          console.log(`   Removing ownership for team: ${team.name}`);
+          team.isTaken = false;
+          team.ownerSocketId = null;
+          team.ownerEmail = null; // Clear ownership
+          team.ownerPlayerId = null;
+          team.playerEmail = null;
+          team.playerName = null; 
+          
+          saveRoomToDB(roomId);
+          io.to(roomId).emit("lobby_update", { teams: r.teams, userCount: r.users.length });
+        }
+      } 
+      
+      // Also update MongoDB directly
+      const roomDoc = await Room.findOne({ roomId: roomId });
+      if (roomDoc) {
+          let updated = false;
+          roomDoc.teams.forEach(t => {
+              if ((email && t.ownerEmail === email) || (playerId && t.ownerPlayerId === playerId) || (email && t.playerEmail === email)) {
+                  t.isTaken = false;
+                  t.ownerSocketId = null;
+                  t.ownerEmail = null;
+                  t.ownerPlayerId = null;
+                  t.playerEmail = null;
+                  t.playerName = null;
+                  updated = true;
+              }
+          });
+          if (updated) {
+               await roomDoc.save();
+               console.log("   ✅ Dismissed in MongoDB.");
+          }
+      }
+
+      socket.emit("game_dismissed_success", roomId);
+
+    } catch (e) {
+      console.error("❌ Error dismissing game:", e);
+    }
+  });
+
+  // 🚀 RESUME GAME (Direct Join Bypass)
+  socket.on("resume_game", ({ roomId, email, playerId }) => {
+      console.log(`🚀 RESUME REQUEST: ${roomId} for ${email || playerId}`);
+      
+      const r = rooms[roomId];
+      if (!r) {
+          console.log("   ⚠️ Room not in memory. Failing resume.");
+          socket.emit("resume_failed", "Room inactive.");
+          return;
+      }
+
+      // Verify User is Owner/Player
+      const team = r.teams.find(t => 
+          (email && t.ownerEmail === email) || 
+          (playerId && t.ownerPlayerId === playerId) ||
+          (email && t.playerEmail === email)
+      );
+      
+      let isAdminUser = (r.adminPlayerId === playerId);
+
+      if (team || isAdminUser) {
+          console.log(`   ✅ User verified. Joining room directly.`);
+          socket.join(roomId);
+          if (!r.users.includes(socket.id)) r.users.push(socket.id);
+          
+          // ✨ Update Admin if re-joining
+          if (r.adminPlayerId === playerId) {
+              r.adminSocketId = socket.id;
+              isAdminUser = true; // Ensure consistency
+          }
+          
+          // Reclaim logic
+          if (team) {
+              team.ownerSocketId = socket.id; 
+              
+              // Set essential socket properties for chat/trade center
+              socket.teamId = team.bidKey;
+              socket.teamName = team.name;
+              socket.userId = playerId;
+              
+              socket.emit("team_claim_success", team.bidKey);
+          } else if (isAdminUser) {
+              socket.userId = playerId; // Admin has no team but needs userId
+          }
+
+          saveRoomToDB(roomId); // Update lastActive
+          
+          io.to(roomId).emit("lobby_update", {
+            teams: r.teams,
+            userCount: r.users.length,
+          });
+
+          socket.emit("room_joined", {
+            roomId: roomId,
+            isAdmin: isAdminUser,
+            playerId: playerId,
+            state: {
+                isActive: r.state.isActive,
+                teams: r.teams,
+                queue: r.auctionQueue
+            },
+            lobbyState: {
+              teams: r.teams,
+              userCount: r.users.length,
+            },
+            config: r.config,
+            chatHistory: r.chatHistory || [],
+          });
+
+          // Handle mid-tournament states
+          if (r.auctionState === "SQUAD_SELECTION") {
+              socket.emit("open_squad_selection", { teams: r.teams });
+          } else if (r.auctionState === "RESULTS" && r.lastTournamentResults) {
+              socket.emit("tournamentComplete", r.lastTournamentResults);
+          }
+          
+      } else {
+          console.log("   ❌ User is not part of this room.");
+          socket.emit("resume_failed", "Not a participant.");
+      }
+  });
+
 
   // Trade System Handlers
   socket.on("create_trade_request", (data) => {
@@ -534,11 +876,11 @@ io.on("connection", (socket) => {
         message: data.details.message,
       };
       tradeSystem.createComplexTrade(socket, roomId, complexTradeData);
-    } 
+    }
     // 2. New Market Request (Broadcast)
     else if (data.type === "MARKET_REQUEST") {
       tradeSystem.createTradeRequest(socket, roomId, data);
-    } 
+    }
     // 3. Response/Proposal to Existing Request
     else {
       tradeSystem.submitProposal(socket, roomId, data);
@@ -616,8 +958,6 @@ io.on("connection", (socket) => {
     if (!roomId) return;
     analytics.trackSale(roomId, data);
     achievements.checkAchievements(socket.playerId, "player_sold", data);
-    if (data.player)
-      predictGame.endPredictGame(roomId, data.player, data.price);
   });
 
   socket.on("client_bid_placed", (data) => {
@@ -625,43 +965,56 @@ io.on("connection", (socket) => {
     if (roomId) analytics.trackBid(roomId, data);
   });
 
-  // AI Simulation Request
-  socket.on("request_tournament_data", async (data) => {
-    const { roomId, prompt } = data;
-    const r = rooms[roomId];
-    if (!r) return socket.emit("simulation_error", "Room not found");
-
-    try {
-      console.log(`Running AI Simulation for Room: ${roomId}`);
-      
-      const teamsCopy = JSON.parse(JSON.stringify(r.teams));
-      
-      // Inject owner names for display
-      if (r.playerNames) {
-        teamsCopy.forEach(t => {
-          if (t.ownerPlayerId && r.playerNames[t.ownerPlayerId]) {
-            t.playerName = r.playerNames[t.ownerPlayerId];
-          } else {
-            t.playerName = t.ownerEmail || 'CPU';
-          }
-        });
-      }
-      
-      // Pass the custom prompt to AI
-      const simulationResult = await AI.runFullTournament(teamsCopy, prompt || "");
-
-      socket.emit("tournament_data_response", {
-        tournamentResults: simulationResult,
-      });
-    } catch (e) {
-      console.error("Simulation failed:", e);
-      socket.emit("simulation_error", e.message);
-    }
+  // --- LIVE MATCH SYSTEM ---
+  socket.on("send_match_challenge", (data) => {
+      const roomId = getRoomId(socket);
+      if (roomId) liveMatch.handleMatchChallenge(socket, { ...data, roomId });
   });
 
+  socket.on("respond_match_challenge", (data) => {
+      const roomId = getRoomId(socket);
+      if (roomId) liveMatch.handleChallengeResponse(socket, { ...data, roomId });
+  });
+
+  socket.on("match_toss_select", (data) => {
+      liveMatch.handleTossSelection(socket, data);
+  });
+
+  socket.on("match_toss_decision", (data) => {
+      liveMatch.handleTossDecision(socket, data);
+  });
+
+  socket.on("match_player_select", (data) => {
+      liveMatch.handlePlayerSelection(socket, data);
+  });
+
+  socket.on("match_next_ball", (data) => {
+      liveMatch.simulateBall(socket, data);
+  });
+
+  // Placeholder for any other specific simulation-related emissions if needed
+  // Note: Combined with the general request_tournament_data handler below
+
   // 1. CREATE ROOM
-  socket.on("create_room", ({ roomId, password, config, playerName }) => {
-    if (rooms[roomId]) return socket.emit("error_message", "Room Exists!");
+  socket.on("create_room", async ({ roomId, password, config, playerName }) => {
+    // Check if room exists in memory
+    if (rooms[roomId]) {
+        console.log(`❌ Create Room failed: Room ${roomId} already active in memory.`);
+        return socket.emit("error_message", "Room already exists! Please use a different ID.");
+    }
+
+    // CHECK DATABASE: Ensure room ID is not taken globally
+    try {
+      const dbExists = await Room.exists({ roomId });
+      if (dbExists) {
+         console.log(`❌ Create Room failed: Room ${roomId} exists in database.`);
+         return socket.emit("error_message", "Room ID already taken! Please use a different ID.");
+      }
+    } catch (dbErr) {
+       console.error("DB Check failed in create_room:", dbErr);
+    }
+
+    console.log(`🏠 Creating new room: ${roomId} (PID: ${socket.playerId}, Name: ${playerName})`);
 
     rooms[roomId] = {
       roomId, // Ensure roomId is stored
@@ -702,38 +1055,7 @@ io.on("connection", (socket) => {
   // 2. JOIN ROOM
   socket.on("join_room", async ({ roomId, password, playerName }) => {
     // 1. Persistence Check (Restore if missing from memory)
-    if (!rooms[roomId]) {
-      try {
-        const dbRoom = await Room.findOne({ roomId });
-        if (dbRoom) {
-          const roomObj = dbRoom.toObject();
-          // BRIDGE: Database model uses slightly different fields than memory object
-          rooms[roomId] = {
-            ...roomObj,
-            users: [],
-            currentBid: 0,
-            currentBidder: null,
-            currentPlayer: null,
-            timer: AUCTION_TIMER_SECONDS,
-            timerInterval: null,
-            timerPaused: true,
-            sellingInProgress: false,
-            auctionQueue: roomObj.auctionQueue || [],
-            auctionIndex: roomObj.auctionIndex || 0,
-            state: {
-              isActive: !roomObj.completedAt && roomObj.auctionState !== "RESULTS",
-            },
-            playerNames: roomObj.playerNames || {},
-            squads: roomObj.squads || {},
-          };
-          console.log(
-            `✅ Restored Room ${roomId} from Database (Mode: ${roomObj.auctionState})`,
-          );
-        }
-      } catch (e) {
-        console.error("Error restoring room from DB:", e);
-      }
-    }
+    // Persistence check removed. New game only.
 
     const r = rooms[roomId];
     if (!r) {
@@ -741,20 +1063,17 @@ io.on("connection", (socket) => {
       return socket.emit("error_message", "Room not found!");
     }
 
-    console.log(`📡 Player ${socket.playerId} attempting to join room ${roomId}`);
+    console.log(
+      `📡 Player ${socket.playerId} (${playerName || 'Unknown'}) attempting to join room ${roomId}`,
+    );
 
-    // Check if player already has a team in this room (reconnection)
-    const existingTeam = r.teams?.find(t => t.ownerPlayerId === socket.playerId);
-    
-    // Check password ONLY if player is NOT reconnecting
-    if (!existingTeam) {
-      const rPassword = r.password || r.roomPassword;
-      if (rPassword && rPassword !== password) {
-        console.log(`❌ Invalid password for room: ${roomId}. PID: ${socket.playerId}`);
-        return socket.emit("error_message", "Invalid Password");
-      }
-    } else {
-      console.log(`🔄 Player ${socket.playerId} reconnecting (owns team: ${existingTeam.name})`);
+    // Standard password check (No reconnection logic)
+    const rPassword = r.password || r.roomPassword;
+    if (rPassword && rPassword !== password) {
+      console.log(
+        `❌ Invalid password for room: ${roomId}. PID: ${socket.playerId}`,
+      );
+      return socket.emit("error_message", "Invalid Password");
     }
 
     socket.join(roomId);
@@ -772,15 +1091,17 @@ io.on("connection", (socket) => {
       isAdminReconnected = true;
     }
 
-    const myTeam = r.teams.find((t) => t.ownerPlayerId === socket.playerId);
+    // --- NEW: Persistent Identity for Teams (Hidden Bug Fix) ---
+    const myTeam = r.teams.find(t => t.ownerPlayerId === socket.playerId);
     if (myTeam) {
-      myTeam.ownerSocketId = socket.id;
-      // RESTORE SOCKET PROPERTIES
-      socket.teamId = myTeam.bidKey;
-      socket.teamName = myTeam.name;
-      socket.userId = socket.playerId;
-      socket.emit("team_claim_success", myTeam.bidKey);
+       myTeam.ownerSocketId = socket.id;
+       socket.teamId = myTeam.bidKey;
+       socket.teamName = myTeam.name;
+       socket.userId = socket.playerId;
+       console.log(`📡 Linked team ${myTeam.name} to reconnected socket ${socket.id}`);
     }
+
+
 
     socket.emit("room_joined", {
       roomId,
@@ -791,6 +1112,7 @@ io.on("connection", (socket) => {
         teams: r.teams,
         queue: r.auctionQueue,
       },
+      chatHistory: r.chatHistory || [],
     });
 
     saveRoomToDB(roomId);
@@ -802,6 +1124,8 @@ io.on("connection", (socket) => {
 
     if (r.auctionState === "SQUAD_SELECTION") {
       socket.emit("open_squad_selection", { teams: r.teams });
+    } else if (r.auctionState === "RESULTS" && r.lastTournamentResults) {
+      socket.emit("tournamentComplete", r.lastTournamentResults);
     }
   });
 
@@ -809,23 +1133,53 @@ io.on("connection", (socket) => {
     const roomId = getRoomId(socket);
     const r = rooms[roomId];
     if (r) {
-      let remaining = r.timer;
-      if (!r.timerPaused && r.timerEndTime) {
-        remaining = Math.ceil((r.timerEndTime - Date.now()) / 1000);
-        if (remaining < 0) remaining = 0;
-      }
+      if (r.gameType === 'blind') {
+        // Blind Auction Sync
+        let remaining = r.blindAuction.timer || 0;
+        if (!r.timerPaused && r.blindAuction.timerEndTime) {
+           remaining = Math.ceil((r.blindAuction.timerEndTime - Date.now()) / 1000);
+           if (remaining < 0) remaining = 0;
+        }
+        
+        socket.emit("sync_data", {
+           teams: r.teams,
+           queue: r.auctionQueue,
+           auctionIndex: r.auctionIndex,
+           currentLot: r.blindAuction.currentPlayer, // Use blind auction player
+           currentBid: 0, // Hidden
+           currentBidder: null,
+           timer: remaining,
+           timerPaused: r.timerPaused,
+           isActive: r.state.isActive,
+           gameType: 'blind',
+           // Add extra state info if needed
+           blindState: {
+             exchangeActive: r.blindAuction.isContestActive,
+             winner: r.blindAuction.winner
+           }
+        });
 
-      socket.emit("sync_data", {
-        teams: r.teams,
-        queue: r.auctionQueue,
-        auctionIndex: r.auctionIndex,
-        currentLot: r.currentPlayer,
-        currentBid: r.currentBid,
-        currentBidder: r.currentBidder,
-        timer: remaining,
-        timerPaused: r.timerPaused,
-        isActive: r.state.isActive,
-      });
+      } else {
+        // Normal Auction Sync
+        let remaining = r.timer;
+        if (!r.timerPaused && r.timerEndTime) {
+          remaining = Math.ceil((r.timerEndTime - Date.now()) / 1000);
+          if (remaining < 0) remaining = 0;
+        }
+
+        socket.emit("sync_data", {
+          teams: r.teams,
+          queue: r.auctionQueue,
+          auctionIndex: r.auctionIndex,
+          currentLot: r.currentPlayer,
+          currentBid: r.currentBid,
+          currentBidder: r.currentBidder,
+          timer: remaining,
+          timerPaused: r.timerPaused,
+          isActive: r.state.isActive,
+          gameType: 'normal'
+        });
+      }
     }
   });
 
@@ -903,6 +1257,7 @@ io.on("connection", (socket) => {
     // Store player email for profile tracking
     if (email) {
       t.playerEmail = email;
+      t.ownerEmail = email; // Ensure ownerEmail is set for dashboard
     }
 
     // Set socket properties for trade system
@@ -918,23 +1273,24 @@ io.on("connection", (socket) => {
     });
   });
 
+  // ✨ RECLAIM TEAM (Auto-Join Logic)
   socket.on("reclaim_team", (key) => {
-    const roomId = getRoomId(socket);
-    const r = rooms[roomId];
-    if (!r) return;
-    const t = r.teams.find((x) => x.bidKey === key);
+      const roomId = getRoomId(socket);
+      const r = rooms[roomId];
+      if (!r) return;
 
-    if (t && t.ownerPlayerId === socket.playerId) {
-      t.ownerSocketId = socket.id;
-      
-      // FIX: Restore socket properties for trade system
-      socket.teamId = t.bidKey;
-      socket.teamName = t.name;
-      socket.userId = socket.playerId;
-      
-      socket.emit("team_claim_success", key);
-    }
+      const t = r.teams.find(x => x.bidKey === key);
+      if (t && t.ownerPlayerId === socket.playerId) {
+          t.ownerSocketId = socket.id;
+          socket.teamId = t.bidKey;
+          socket.teamName = t.name;
+          socket.userId = socket.playerId;
+          socket.emit("team_claim_success", key);
+          console.log(`✅ ${socket.playerId} reclaimed ${t.name} in ${roomId}`);
+      }
   });
+
+
 
   socket.on("request_reclaim_manual", ({ teamKey }) => {
     const roomId = getRoomId(socket);
@@ -1008,15 +1364,19 @@ io.on("connection", (socket) => {
     if (takenTeams[0]) {
       takenTeams[0].roster = rcb;
       takenTeams[0].totalPlayers = rcb.length;
-      takenTeams[0].budget = 10000000;
-      console.log(`Auto-assigned RCB roster to ${takenTeams[0].name}`);
+      const spent = rcb.reduce((sum, p) => sum + (p.price || 0), 0);
+      takenTeams[0].totalSpent = spent;
+      takenTeams[0].budget = (r.config?.budget || 1000000000) - spent;
+      console.log(`Auto-assigned RCB roster to ${takenTeams[0].name}. Spent: ${spent}`);
     }
 
     if (takenTeams[1]) {
       takenTeams[1].roster = csk;
       takenTeams[1].totalPlayers = csk.length;
-      takenTeams[1].budget = 10000000;
-      console.log(`Auto-assigned CSK roster to ${takenTeams[1].name}`);
+      const spent = csk.reduce((sum, p) => sum + (p.price || 0), 0);
+      takenTeams[1].totalSpent = spent;
+      takenTeams[1].budget = (r.config?.budget || 1000000000) - spent;
+      console.log(`Auto-assigned CSK roster to ${takenTeams[1].name}. Spent: ${spent}`);
     }
 
     // 2. Ensure they are marked as valid for simulation
@@ -1108,6 +1468,28 @@ io.on("connection", (socket) => {
     }
   });
 
+  // 🪄 AUTO WIN (Admin Instant Claim)
+  socket.on("auto_win_bid", () => {
+      const roomId = getRoomId(socket);
+      const r = rooms[roomId];
+      if (!r || !isAdmin(socket) || !r.currentPlayer) return;
+
+      // Find admin's team
+      const adminTeam = r.teams.find(t => t.ownerPlayerId === socket.playerId);
+      if (!adminTeam) return socket.emit("error_message", "You need to join a team first!");
+
+      // Force bid
+      const nextBid = (r.currentBidder) ? r.currentBid + (r.config.increment || 2500000) : r.currentPlayer.basePrice;
+      
+      if (adminTeam.budget < nextBid) return socket.emit("error_message", "Insufficient Budget!");
+
+      r.currentBid = nextBid;
+      r.currentBidder = adminTeam.bidKey;
+      
+      // Instantly process sale
+      processSale(roomId, "AUTO_WIN");
+  });
+
   socket.on("end_auction_trigger", () => {
     const roomId = getRoomId(socket);
     const r = rooms[roomId];
@@ -1118,6 +1500,52 @@ io.on("connection", (socket) => {
       saveRoomToDB(roomId);
       io.to(roomId).emit("open_squad_selection");
     }
+  });
+
+  // ⚡ FAST FINISH (Skip to Scorecard)
+  socket.on("force_fast_finish", () => {
+      const roomId = getRoomId(socket);
+      const r = rooms[roomId];
+      if (isAdmin(socket) && r) {
+          console.log(`⚡ Fast Finishing Room ${roomId}`);
+          stopTimer(roomId);
+          r.state.isActive = false;
+          r.auctionState = "SIMULATING";
+          
+          // Auto-fill squads for all active teams if empty
+          const activeTeams = r.teams.filter(t => t.isTaken);
+          activeTeams.forEach(t => {
+              if (!r.squads[t.bidKey]) {
+                  // Fallback: use first 11 players from roster or just the roster
+                  const squad = t.roster.slice(0, 11).map(p => p.name);
+                  r.squads[t.bidKey] = {
+                      squad: squad,
+                      batImpact: squad[0] || null,
+                      bowlImpact: squad[1] || null,
+                      captain: squad[0] || null
+                  };
+              }
+          });
+
+          saveRoomToDB(roomId);
+          runSimulationLogic(roomId, r);
+      }
+  });
+
+  // ⛔ CLOSE ROOM (Manual End / Archive)
+  socket.on("close_room", () => {
+      const roomId = getRoomId(socket);
+      const r = rooms[roomId];
+      if (isAdmin(socket) && r) {
+          console.log(`⛔ Manually Closing Room ${roomId}`);
+          r.state.isActive = false;
+          r.auctionState = "CLOSED"; 
+          r.completedAt = new Date(); // This removes it from Active Sessions list
+          
+          saveRoomToDB(roomId);
+          io.to(roomId).emit("room_closed");
+          io.to(roomId).emit("force_redirect", "dashboard.html"); // Send everyone back
+      }
   });
 
   socket.on(
@@ -1144,45 +1572,69 @@ io.on("connection", (socket) => {
   socket.on("startTournament", (data) => {
     const roomId = getRoomId(socket);
     const r = rooms[roomId];
-    if (r && isAdmin(socket)) {
+    if (r) {
+      console.log(`🏏 Tournament start requested by ${socket.playerId} in room ${roomId}`);
       runSimulationLogic(roomId, r);
+    } else {
+      console.log(`⚠️ Cannot start tournament - room ${roomId} not found`);
+      socket.emit("simulation_error", "Room not found or not properly initialized");
     }
   });
 
-  socket.on("request_tournament_data", ({ roomId }) => {
+  socket.on("request_tournament_data", async ({ roomId, prompt }) => {
     const rId = roomId || getRoomId(socket);
     const r = rooms[rId];
-    
+
     if (!r) {
       console.log(`⚠️ Room ${rId} not found for tournament data request`);
-      return socket.emit("simulation_error", `Room "${rId}" not found. Please ensure the room exists.`);
+      return socket.emit(
+        "simulation_error",
+        `Room "${rId}" not found. Please ensure the room exists.`,
+      );
     }
-    
-    if (r.lastTournamentResults) {
+
+    // Return cached results if available and no fresh prompt provided
+    if (r.lastTournamentResults && !prompt) {
       console.log(`✅ Sending cached tournament results for room ${rId}`);
-      socket.emit("tournament_data_response", {
+      return socket.emit("tournament_data_response", {
         tournamentResults: r.lastTournamentResults,
       });
-    } else {
-      console.log(`⏳ No tournament results yet for room ${rId}. Joining room to wait for live simulation...`);
-      // Join the room so the client can receive live tournamentComplete events
-      socket.join(rId);
-      socket.emit("simulation_error", "Tournament simulation has not been run yet. Waiting for simulation to complete...");
+    }
+
+    // Otherwise, trigger simulation (if matches or squads exist)
+    try {
+        console.log(`🚀 Triggering simulation for room ${rId}...`);
+        await runSimulationLogic(rId, r);
+    } catch (e) {
+        console.error("Simulation failed:", e);
+        socket.emit("simulation_error", "Failed to generate simulation results.");
     }
   });
 
   // Chat Message Handler
   socket.on("chat_message", (data) => {
     const roomId = getRoomId(socket);
-    if (roomId) {
-      // Broadcast message to all players in the room
-      io.to(roomId).emit("chat_message", {
+    if (roomId && rooms[roomId]) {
+      const r = rooms[roomId];
+      const chatMsg = {
         playerName: data.playerName,
         message: data.message,
         timestamp: data.timestamp || Date.now(),
-        // Pass through IDs if available for reactions
         id: data.id || Date.now().toString(),
-      });
+      };
+
+      // Store in memory
+      if (!r.chatHistory) r.chatHistory = [];
+      r.chatHistory.push(chatMsg);
+
+      // Keep history manageable (last 50 messages)
+      if (r.chatHistory.length > 50) r.chatHistory.shift();
+
+      // Broadcast message to all players in the room
+      io.to(roomId).emit("chat_message", chatMsg);
+
+      // Save to DB (delayed)
+      saveRoomToDB(roomId, true);
     }
   });
 
@@ -1254,32 +1706,7 @@ io.on("connection", (socket) => {
   });
 
   // Check for active room for auto-reconnect
-  socket.on("check_active_room", () => {
-    let foundRoom = null;
-    for (const roomId in rooms) {
-      const r = rooms[roomId];
-      // Check if player owns a team in this room
-      const team = r.teams?.find((t) => t.ownerPlayerId === socket.playerId);
-      const isAdmin = r.adminPlayerId === socket.playerId;
 
-      if (team || isAdmin) {
-        foundRoom = {
-          roomId: roomId,
-          teamKey: team?.bidKey,
-          auctionState: r.auctionState,
-          gameType: r.gameType || "normal",
-        };
-        break;
-      }
-    }
-
-    if (foundRoom) {
-      console.log(`🔍 Active room found for ${socket.playerId}: ${foundRoom.roomId}`);
-      socket.emit("active_room_found", foundRoom);
-    } else {
-      socket.emit("no_active_room");
-    }
-  });
 
   // ===================================================================
   // 🎭 BLIND AUCTION HANDLERS
@@ -1288,7 +1715,7 @@ io.on("connection", (socket) => {
   // Create blind auction room
   socket.on(
     "create_blind_room",
-    ({ roomId, password, playerName, gameType }) => {
+    async ({ roomId, password, playerName, gameType }) => {
       console.log("🎭 CREATE_BLIND_ROOM received:", {
         roomId,
         password,
@@ -1298,34 +1725,15 @@ io.on("connection", (socket) => {
 
       let finalRoomId = roomId;
 
-      // If room exists, auto-generate a unique ID
-      if (rooms[roomId]) {
-        console.log(
-          "⚠️  Room already exists:",
-          roomId,
-          "- Auto-generating unique ID...",
-        );
+      // Ensure ID is truly unique (Memory + DB)
+      let roomCollision = !!rooms[finalRoomId] || (await Room.exists({ roomId: finalRoomId }));
 
-        // Try adding numbers 1-99 to find available room
-        let found = false;
-        for (let i = 1; i <= 99; i++) {
-          const newId = roomId + i;
-          if (!rooms[newId]) {
-            finalRoomId = newId;
-            found = true;
-            console.log("✅ Generated unique room ID:", finalRoomId);
-            break;
-          }
-        }
-
-        // If still not found, use timestamp
-        if (!found) {
-          finalRoomId = roomId + Date.now().toString().slice(-4);
-          console.log("✅ Generated timestamp-based room ID:", finalRoomId);
-        }
+      if (roomCollision) {
+          console.log(`❌ Create Room failed: Room ${finalRoomId} already exists.`);
+          return socket.emit("error_message", "Room already exists! Please use a different ID.");
       }
 
-      console.log("✅ Creating new blind auction room:", finalRoomId);
+      console.log(`✅ Creating new blind auction room: ${finalRoomId} for player: ${playerName}`);
 
       rooms[finalRoomId] = {
         roomId: finalRoomId,
@@ -1360,35 +1768,32 @@ io.on("connection", (socket) => {
 
       if (playerName) {
         rooms[finalRoomId].playerNames[socket.playerId] = playerName;
+        console.log(`   [LOG] Stored admin name: ${playerName} for PID: ${socket.playerId}`);
       }
 
       saveRoomToDB(finalRoomId);
-      console.log("✅ Room created successfully, emitting roomcreated event");
+      console.log(`✅ Room ${finalRoomId} created successfully. Emitting 'roomcreated'.`);
       socket.emit("roomcreated", finalRoomId);
     },
   );
 
   // Join blind auction room
   socket.on("join_blind_room", ({ roomId, password, playerName }) => {
-    console.log("🎭 JOIN_BLIND_ROOM received:", {
-      roomId,
-      password,
-      playerName,
-    });
+    console.log(`🎭 JOIN_BLIND_ROOM request: Room=${roomId}, Player=${playerName}, PID=${socket.playerId}`);
 
     const r = rooms[roomId];
 
     if (!r) {
-      console.log("❌ Room not found:", roomId);
+      console.log(`❌ Join failed: Room ${roomId} not found in memory.`);
       return socket.emit("error_message", "Room not found!");
     }
 
     if (r.password !== password) {
-      console.log(`❌ Invalid password for room: ${roomId}. Expected: '${r.password}', Received: '${password}'`);
+      console.log(`❌ Join failed: Invalid password for ${roomId}.`);
       return socket.emit("error_message", "Invalid password!");
     }
 
-    console.log("✅ Joining room:", roomId);
+    console.log(`✅ Join authorized for ${roomId}. PID: ${socket.playerId}`);
 
     socket.join(roomId);
     if (!r.users.includes(socket.id)) r.users.push(socket.id);
@@ -1396,27 +1801,25 @@ io.on("connection", (socket) => {
     if (playerName) {
       if (!r.playerNames) r.playerNames = {};
       r.playerNames[socket.playerId] = playerName;
+      console.log(`   [LOG] Stored player name: ${playerName} for PID: ${socket.playerId}`);
     }
 
-    // 🔄 RECONNECTION LOGIC: Check if user already owns a team
-    const myTeam = r.teams.find((t) => t.ownerPlayerId === socket.playerId);
-    if (myTeam) {
-      console.log(`✅ User ${playerName} reconnected to team ${myTeam.name}`);
-      myTeam.ownerSocketId = socket.id;
 
-      // Restore socket properties
-      socket.teamId = myTeam.bidKey;
-      socket.teamName = myTeam.name;
-      socket.userId = socket.playerId;
-
-      // Notify client they have their team back
-      socket.emit("team_claim_success", myTeam.bidKey);
-    }
 
     const isAdminReconnected = r.adminPlayerId === socket.playerId;
     if (isAdminReconnected) {
       r.adminSocketId = socket.id;
       console.log("✅ Admin reconnected to room:", roomId);
+    }
+
+    // --- NEW: Persistent Identity for Teams (Hidden Bug Fix) ---
+    const myTeam = r.teams.find(t => t.ownerPlayerId === socket.playerId);
+    if (myTeam) {
+       myTeam.ownerSocketId = socket.id;
+       socket.teamId = myTeam.bidKey;
+       socket.teamName = myTeam.name;
+       socket.userId = socket.playerId;
+       console.log(`📡 Linked team ${myTeam.name} to reconnected socket ${socket.id} (BLIND)`);
     }
 
     console.log("✅ Emitting room_joined event");
@@ -1467,6 +1870,7 @@ io.on("connection", (socket) => {
       console.log(`✅ Auction Queue Size: ${r.auctionQueue.length}`);
 
       r.state.isActive = true;
+      r.auctionState = "AUCTION"; // Ensure state is synced
       r.blindAuction.exchangeEnabled = exchangeEnabled;
 
       saveRoomToDB(roomId);
@@ -1474,6 +1878,7 @@ io.on("connection", (socket) => {
       io.to(roomId).emit("blind_auction_started", {
         teams: r.teams,
         exchangeEnabled: exchangeEnabled,
+        queue: r.auctionQueue, // Send queue to all clients
       });
 
       console.log(`📢 Emitted 'blind_auction_started' to room ${roomId}`);
@@ -1588,19 +1993,25 @@ io.on("connection", (socket) => {
 
     // fromTeam is the requestor
     if (r.blindAuction.winner && r.blindAuction.winner.teamKey === fromTeam) {
-       return socket.emit("error_message", "You already won this player!");
+      return socket.emit("error_message", "You already won this player!");
     }
 
     // Validate requestor budget
-    const requestorTeam = r.teams.find(t => t.bidKey === fromTeam);
+    const requestorTeam = r.teams.find((t) => t.bidKey === fromTeam);
     if (!requestorTeam) return;
-    
-    if (r.blindAuction.winner && requestorTeam.budget < r.blindAuction.winner.amount) {
-         return socket.emit("error_message", "Insufficient budget to request exchange!");
+
+    if (
+      r.blindAuction.winner &&
+      requestorTeam.budget < r.blindAuction.winner.amount
+    ) {
+      return socket.emit(
+        "error_message",
+        "Insufficient budget to request exchange!",
+      );
     }
 
     if (!r.blindAuction.requests) r.blindAuction.requests = {};
-    
+
     // Check if this is a new request (not already requested)
     const isNewRequest = !r.blindAuction.requests[fromTeam];
     r.blindAuction.requests[fromTeam] = true;
@@ -1612,14 +2023,16 @@ io.on("connection", (socket) => {
     // ADD 5 SECONDS TO TIMER if this is a new request
     if (isNewRequest && r.blindAuction.timer !== undefined) {
       r.blindAuction.timer += 5;
-      console.log(`⏱️ Added 5 seconds to decision timer. New time: ${r.blindAuction.timer}s`);
-      
+      console.log(
+        `⏱️ Added 5 seconds to decision timer. New time: ${r.blindAuction.timer}s`,
+      );
+
       // Emit timer update to all clients
       io.to(roomId).emit("blind_timer_tick", r.blindAuction.timer);
       io.to(roomId).emit("timer_extended", {
         teamName: requestorTeam.name,
         newTime: r.blindAuction.timer,
-        message: `${requestorTeam.name} requested exchange! +5 seconds added.`
+        message: `${requestorTeam.name} requested exchange! +5 seconds added.`,
       });
     }
 
@@ -1627,6 +2040,26 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("exchange_requests_updated", {
       requestors: Object.keys(r.blindAuction.requests),
     });
+    });
+
+
+  // 🛑 ADMIN CLOSE ROOM IMMEDIATELY
+  socket.on("admin_close_room", () => {
+    const roomId = getRoomId(socket);
+    if (!isAdmin(socket)) return;
+
+    if (rooms[roomId]) {
+      // Notify all clients to leave
+      io.to(roomId).emit("room_closed_by_admin");
+      
+      // Delete from DB immediately
+      Room.deleteOne({ roomId: roomId }).then(() => {
+        console.log(`🛑 Room ${roomId} CLOSED and DELETED by Admin.`);
+      }).catch(err => console.error("Error deleting room:", err));
+
+      // Remove from memory
+      delete rooms[roomId];
+    }
   });
 
   // Winner clicks Exchange (Accepts the idea of selling)
@@ -1675,7 +2108,12 @@ io.on("connection", (socket) => {
         requestors: requestorKeys,
         basePrice: r.blindAuction.winner.amount,
         player: r.blindAuction.currentPlayer,
+        timer: 15 // 15 seconds for contest
       });
+
+      // Start Contest Timer (Fix for hanging auction)
+      startExchangeTimer(roomId, 15); 
+
     }
   });
 
@@ -1687,15 +2125,22 @@ io.on("connection", (socket) => {
 
     // Find team by socket ID or player ID (for reconnection support)
     const team = r.teams.find(
-      (t) => t.ownerSocketId === socket.id || t.ownerPlayerId === socket.playerId
+      (t) =>
+        t.ownerSocketId === socket.id || t.ownerPlayerId === socket.playerId,
     );
     if (!team || !r.blindAuction.requests[team.bidKey]) {
-      return socket.emit("error_message", "You are not in the exchange contest!");
+      return socket.emit(
+        "error_message",
+        "You are not in the exchange contest!",
+      );
     }
 
     // Budget Check
     if (team.budget < amount) {
-      return socket.emit("error_message", "Insufficient Budget for contest bid!");
+      return socket.emit(
+        "error_message",
+        "Insufficient Budget for contest bid!",
+      );
     }
 
     r.blindAuction.contestBids[team.bidKey] = amount;
@@ -1718,7 +2163,8 @@ io.on("connection", (socket) => {
 
     // Find team by socket ID or player ID (for reconnection support)
     const team = r.teams.find(
-      (t) => t.ownerSocketId === socket.id || t.ownerPlayerId === socket.playerId
+      (t) =>
+        t.ownerSocketId === socket.id || t.ownerPlayerId === socket.playerId,
     );
     if (!team || !r.blindAuction.tieBreakerTeams.includes(team.bidKey)) {
       return socket.emit("error_message", "You are not in the tie-breaker!");
@@ -1726,7 +2172,10 @@ io.on("connection", (socket) => {
 
     // Budget check
     if (team.budget < amount) {
-      return socket.emit("error_message", "Insufficient Budget for tie-breaker bid!");
+      return socket.emit(
+        "error_message",
+        "Insufficient Budget for tie-breaker bid!",
+      );
     }
 
     r.blindAuction.tieBreakerBids[team.bidKey] = amount;
@@ -1890,36 +2339,82 @@ io.on("connection", (socket) => {
   });
 });
 
-// =================================================================
 // 🚀 NEW SIMULATION ENGINE (IMPORTED FROM ai.js)
-// =================================================================
-const ai = require("./ai");
+// AI variable is already defined at top of file
 
 async function runSimulationLogic(roomId, r) {
   if (!r) return;
 
-  // Prepare teams for the AI
-  const tourneyTeams = r.teams
-    .filter((t) => t.isTaken)
+  // Prepare teams for the AI - use default teams if no teams are taken
+  // Prepare teams for the AI - only include teams that have been taken
+  let tourneyTeams = r.teams
+    .filter(t => t.isTaken)
     .map((t) => {
-      const squad = r.squads[t.bidKey];
-      if (!squad) return null;
+      const squadData = r.squads[t.bidKey];
+      
+      // Hydrate squad players
+      const hydratedSquad = (squadData?.squad || []).map((entry) => {
+        const playerName =
+          typeof entry === "string" ? entry : entry.name || "Unknown";
+        const dbPlayer = getPlayerFromDB(playerName);
+        return {
+          name: playerName,
+              role: dbPlayer.role || "Normal",
+              type: dbPlayer.type || "bat",
+              stats: {
+                  bat: dbPlayer.bat || 70,
+                  bowl: dbPlayer.bowl || 60,
+                  luck: dbPlayer.luck || 70
+              },
+              trait: dbPlayer.trait || "normal"
+          };
+      });
+
       return {
         ...t,
-        squad: squad.squad,
-        batImpact: squad.batImpact,
-        bowlImpact: squad.bowlImpact,
-        captain: squad.captain,
+        squad: hydratedSquad,
+        batImpact: squadData ? squadData.batImpact : null,
+        bowlImpact: squadData ? squadData.bowlImpact : null,
+        captain: squadData ? squadData.captain : null,
       };
-    })
-    .filter((t) => t);
+    });
+
+  // If too few teams are taken, fill with default AI teams to make a competitive 4-team tournament
+  if (tourneyTeams.length < 2) {
+    console.log(`Too few teams (${tourneyTeams.length}) in room ${roomId}, adding default AI teams.`);
+    const defaultTeams = [
+      { name: "CSK", bidKey: "csk", playerName: "AI Bot", isTaken: true },
+      { name: "MI", bidKey: "mi", playerName: "AI Bot", isTaken: true },
+      { name: "RCB", bidKey: "rcb", playerName: "AI Bot", isTaken: true },
+      { name: "KKR", bidKey: "kkr", playerName: "AI Bot", isTaken: true }
+    ].filter(dt => !tourneyTeams.find(tt => tt.name === dt.name)).slice(0, 4 - tourneyTeams.length);
+
+    // Hydrate AI teams with realistic squads from database
+    const hydratedAI = defaultTeams.map(team => {
+        // Select some players from DB based on team name (very basic heuristic)
+        const players = Object.keys(PLAYER_DATABASE).slice(0, 15); // Just grab some top players
+        const squad = players.slice(0, 11).map(pName => {
+            const dbP = getPlayerFromDB(pName);
+            return {
+                name: pName,
+                role: dbP.role || "Normal",
+                type: dbP.type || "bat",
+                stats: { bat: dbP.bat || 70, bowl: dbP.bowl || 60, luck: dbP.luck || 70 },
+                trait: dbP.trait || "normal"
+            };
+        });
+        return { ...team, squad, roster: squad };
+    });
+
+    tourneyTeams = [...tourneyTeams, ...hydratedAI];
+  }
 
   // Call the AI Engine
   try {
     console.log(
       `Running AI Simulation for Room ${roomId} with ${tourneyTeams.length} teams.`,
     );
-    const aiResults = await ai.runFullTournament(tourneyTeams);
+    const aiResults = await AI.runFullTournament(tourneyTeams);
 
     // Merge with Room Data for Frontend
     const results = {
@@ -1930,6 +2425,7 @@ async function runSimulationLogic(roomId, r) {
 
     // Save for persistence
     r.lastTournamentResults = results;
+    r.auctionState = "RESULTS";
 
     // Mark room as completed for auto-cleanup (12 hours)
     r.completedAt = new Date();
@@ -1938,7 +2434,7 @@ async function runSimulationLogic(roomId, r) {
     await updateUserProfiles(roomId, r, aiResults);
 
     // Save win record to database
-    await saveWinRecord(roomId, r, aiResults);
+    await saveWinRecord(roomId, r, aiResults, tourneyTeams);
 
     // Save to DB with completedAt timestamp
     await saveRoomToDB(roomId);
@@ -1959,12 +2455,15 @@ async function updateUserProfiles(roomId, r, aiResults) {
     const gameType = r.gameType || "normal";
     console.log("🎮 Game Type:", gameType);
 
-    // Determine winner and runner-up
+    // Determine winner and runner-up with fuzzy matching fallback
     const winner = aiResults.winner;
     const runnerUp = aiResults.runnerUp;
 
-    console.log("🏆 Winner:", winner?.name);
-    console.log("🥈 Runner-up:", runnerUp?.name);
+    const winnerName = winner?.name || winner?.teamName || "Unknown";
+    const runnerUpName = runnerUp?.name || runnerUp?.teamName || "Unknown";
+
+    console.log("🏆 Winner (Raw):", winnerName);
+    console.log("🥈 Runner-up (Raw):", runnerUpName);
 
     // Update each team's owner profile
     const takenTeams = r.teams.filter((t) => t.isTaken);
@@ -1992,13 +2491,21 @@ async function updateUserProfiles(roomId, r, aiResults) {
 
       console.log(`   ✅ User found: ${user.name}`);
 
-      // Determine result
+      // Determine result (Fuzzy match)
       let result = "participated";
       let won = false;
-      if (winner && team.name === winner.name) {
+      
+      const teamMatch = (tName, compareName) => {
+          if (!tName || !compareName) return false;
+          const t = tName.toLowerCase().replace(/\s/g, '');
+          const c = compareName.toLowerCase().replace(/\s/g, '');
+          return t === c || t.includes(c) || c.includes(t);
+      };
+
+      if (winnerName && teamMatch(team.name, winnerName)) {
         result = "won";
         won = true;
-      } else if (runnerUp && team.name === runnerUp.name) {
+      } else if (runnerUpName && teamMatch(team.name, runnerUpName)) {
         result = "runner-up";
       }
 
@@ -2102,7 +2609,7 @@ async function updateUserProfiles(roomId, r, aiResults) {
 }
 
 // Helper function to save win record to database
-async function saveWinRecord(roomId, r, aiResults) {
+async function saveWinRecord(roomId, r, aiResults, tourneyTeams) {
   // Skip if MongoDB is not connected
   if (mongoose.connection.readyState !== 1) {
     console.log("⚠️  Skipping win record save - MongoDB not connected");
@@ -2119,12 +2626,16 @@ async function saveWinRecord(roomId, r, aiResults) {
     const winner = aiResults.winner;
     const runnerUp = aiResults.runnerUp;
 
-    if (!winner) {
-      console.log("⚠️  No winner found, skipping win record");
+    // Robust extraction of winner data
+    const winnerName = winner?.name || winner?.teamName || "CHAMPIONS";
+    const runnerUpName = runnerUp?.name || runnerUp?.teamName || "FINALISTS";
+
+    if (!winner && !aiResults.standings) {
+      console.log("⚠️  AI Results missing winner & standings, skipping saveWinRecord");
       return;
     }
 
-    // Build players list
+    // Build players list (Only human users)
     const players = r.teams
       .filter((t) => t.isTaken)
       .map((team) => {
@@ -2152,9 +2663,29 @@ async function saveWinRecord(roomId, r, aiResults) {
           won: team.stats?.w || team.stats?.won || 0,
           lost: team.stats?.l || team.stats?.lost || 0,
           points: team.stats?.pts || team.stats?.points || 0,
-          nrr: team.stats?.nrr || 0,
+          nrr: typeof team.stats?.nrr === 'number' ? team.stats.nrr : parseFloat(team.stats?.nrr || 0),
         }))
       : [];
+
+    // Build rosters list using FULL tourneyTeams (includes AI)
+    // If tourneyTeams is provided, use it. Otherwise fallback to r.teams logic.
+    let rostersSource = tourneyTeams || r.teams.filter(t => t.isTaken);
+    
+    const rosters = rostersSource.map((team) => {
+        // Map squad to expected format
+        const squadList = team.squad || team.roster || [];
+        return {
+          teamName: team.name,
+          teamKey: team.bidKey,
+          playerName: team.playerName || "AI Bot",
+          players: squadList.map((p) => ({
+             name: p.name,
+             role: p.role || p.roleKey || "Player",
+             price: Number(p.price) || 0,
+             type: p.type || "bat"
+          }))
+        };
+      });
 
     // Create win record
     const winRecord = new Win({
@@ -2165,9 +2696,9 @@ async function saveWinRecord(roomId, r, aiResults) {
       players: players,
 
       winner: {
-        teamName: winner.name,
-        teamKey: winnerTeam?.bidKey,
-        playerName: winnerTeam?.playerName || "Unknown",
+        teamName: winnerName,
+        teamKey: winnerTeam?.bidKey || "winner",
+        playerName: winnerTeam?.playerName || winner?.playerName || "Unknown Player",
         playerEmail: winnerTeam?.playerEmail || winnerTeam?.ownerEmail,
         playerId: winnerTeam?.ownerPlayerId,
         totalPoints: winner.stats?.pts || winner.stats?.points || 0,
@@ -2178,9 +2709,9 @@ async function saveWinRecord(roomId, r, aiResults) {
 
       runnerUp: runnerUp
         ? {
-            teamName: runnerUp.name,
-            teamKey: runnerUpTeam?.bidKey,
-            playerName: runnerUpTeam?.playerName || "Unknown",
+            teamName: runnerUpName,
+            teamKey: runnerUpTeam?.bidKey || "runnerup",
+            playerName: runnerUpTeam?.playerName || runnerUp?.playerName || "Unknown Player",
             playerEmail: runnerUpTeam?.playerEmail || runnerUpTeam?.ownerEmail,
             playerId: runnerUpTeam?.ownerPlayerId,
             totalPoints: runnerUp.stats?.pts || runnerUp.stats?.points || 0,
@@ -2195,27 +2726,50 @@ async function saveWinRecord(roomId, r, aiResults) {
         orangeCap: aiResults.orangeCap
           ? {
               playerName: aiResults.orangeCap.name,
-              runs: aiResults.orangeCap.runs,
+              runs: aiResults.orangeCap.val || aiResults.orangeCap.runs,
               team: aiResults.orangeCap.team,
             }
           : undefined,
         purpleCap: aiResults.purpleCap
           ? {
               playerName: aiResults.purpleCap.name,
-              wickets: aiResults.purpleCap.wkts || aiResults.purpleCap.wickets,
+              wickets: aiResults.purpleCap.val || aiResults.purpleCap.wkts || aiResults.purpleCap.wickets,
               team: aiResults.purpleCap.team,
             }
           : undefined,
         mvp: aiResults.mvp
           ? {
               playerName: aiResults.mvp.name,
-              points: aiResults.mvp.pts || aiResults.mvp.points,
+              points: aiResults.mvp.val || aiResults.mvp.pts || aiResults.mvp.points,
               team: aiResults.mvp.team,
             }
           : undefined,
       },
 
       standings: standings,
+      rosters: rosters,
+      
+      leagueMatches: (aiResults.leagueMatches || []).map(m => ({
+          t1: m.t1 || m.team1,
+          t2: m.t2 || m.team2,
+          winner: m.winnerName || m.winner,
+          margin: m.margin,
+          score1: m.score1,
+          score2: m.score2,
+          type: m.type || "League",
+          batFirst: m.batFirst
+      })),
+
+      playoffs: (aiResults.playoffs || []).map(m => ({
+          t1: m.t1 || m.team1,
+          t2: m.t2 || m.team2,
+          winner: m.winnerName || m.winner,
+          margin: m.margin,
+          score1: m.score1,
+          score2: m.score2,
+          type: m.type || "Playoff",
+          batFirst: m.batFirst
+      })),
 
       metadata: {
         budget: r.config?.budget || 1000000000,
@@ -2327,10 +2881,11 @@ function clearBlindAuctionTimers(r) {
 
 function startBlindBidTimer(roomId) {
   const r = rooms[roomId];
-  if (!r) return;
+  if (!r || !r.blindAuction) return;
 
   let timeLeft = r.blindAuction.bidTimer;
-  r.blindAuction.timer = timeLeft; // Sync specifically for pause resume
+  r.blindAuction.timer = timeLeft; 
+  r.blindAuction.timerEndTime = Date.now() + timeLeft * 1000; // Sync Fix
 
   // Clear existing timer
   clearBlindAuctionTimers(r);
@@ -2346,7 +2901,10 @@ function startBlindBidTimer(roomId) {
 
   r.blindAuction.timerInterval = setInterval(() => {
     // Check global pause state
-    if (r.timerPaused) return;
+    if (r.timerPaused) {
+       r.blindAuction.timerEndTime = Date.now() + r.blindAuction.timer * 1000;
+       return;
+    }
 
     timeLeft--;
     r.blindAuction.timer = timeLeft;
@@ -2364,7 +2922,7 @@ function startBlindBidTimer(roomId) {
 
 function revealBids(roomId) {
   const r = rooms[roomId];
-  if (!r) return;
+  if (!r || !r.blindAuction) return;
 
   // CLEAR TIMER if it was running (stops it if we revealed early)
   if (r.blindAuction.timerInterval) {
@@ -2448,7 +3006,7 @@ function revealBids(roomId) {
     // Stop any existing interval (though should be null)
     if (r.blindAuction.timerInterval)
       clearInterval(r.blindAuction.timerInterval);
-    
+
     // Ensure timer is running
     r.timerPaused = false;
     io.to(roomId).emit("timer_status", false);
@@ -2478,10 +3036,19 @@ function revealBids(roomId) {
     // No bids, player unsold
     console.log(`${r.blindAuction.currentPlayer.name} - UNSOLD`);
 
+    // Update status in auctionQueue
+    if (r.auctionQueue) {
+      const qPlayer = r.auctionQueue.find(p => p.name === r.blindAuction.currentPlayer.name);
+      if (qPlayer) {
+        qPlayer.status = "UNSOLD";
+      }
+    }
+
     // Emit IMMEDIATE update so clients see "UNSOLD"
     io.to(roomId).emit("unsold_finalized", {
       message: `${r.blindAuction.currentPlayer.name} was UNSOLD`,
-      player: r.blindAuction.currentPlayer
+      player: r.blindAuction.currentPlayer,
+      queue: r.auctionQueue,
     });
 
     // Auto-advance after 1 second for UNSOLD (Quick transition)
@@ -2509,7 +3076,9 @@ function revealBids(roomId) {
           startNextBlindPlayer(roomId);
         } else {
           // End of auction
-          console.log("Blind auction complete (after unsold). Open squad selection.");
+          console.log(
+            "Blind auction complete (after unsold). Open squad selection.",
+          );
           io.to(roomId).emit("open_squad_selection");
         }
       }
@@ -2517,25 +3086,29 @@ function revealBids(roomId) {
   }
 }
 
-function startExchangeTimer(roomId) {
+function startExchangeTimer(roomId, explicitDuration = null) {
   const r = rooms[roomId];
   if (!r) return;
 
-  let timeLeft = r.blindAuction.exchangeTimer;
+  let timeLeft = explicitDuration || r.blindAuction.exchangeTimer;
   r.blindAuction.timer = timeLeft;
+  r.blindAuction.timerEndTime = Date.now() + timeLeft * 1000; // Sync Fix
 
   // Clear any existing exchange timer
   if (r.blindAuction.exchangeInterval) {
     clearInterval(r.blindAuction.exchangeInterval);
   }
-  
+
   // Ensure timer is running
   r.timerPaused = false;
   io.to(roomId).emit("timer_status", false);
 
   r.blindAuction.exchangeInterval = setInterval(() => {
     // Check global pause state
-    if (r.timerPaused) return;
+    if (r.timerPaused) {
+       r.blindAuction.timerEndTime = Date.now() + r.blindAuction.timer * 1000;
+       return;
+    }
 
     timeLeft--;
     r.blindAuction.timer = timeLeft;
@@ -2545,8 +3118,15 @@ function startExchangeTimer(roomId) {
     if (timeLeft <= 0) {
       clearInterval(r.blindAuction.exchangeInterval);
       r.blindAuction.exchangeInterval = null;
-      // Auto-finalize if time runs out
-      finalizeSale(roomId);
+      
+      // Check if we are in contest mode
+      if (r.blindAuction.isContestActive) {
+          console.log(`⏰ Contest Time Up! Finalizing contest for ${roomId}`);
+          finalizeContest(roomId);
+      } else {
+          // Auto-finalize if time runs out (standard exchange)
+          finalizeSale(roomId);
+      }
     }
   }, 1000);
 }
@@ -2591,9 +3171,20 @@ function finalizeSale(roomId) {
     }
   }
 
+  // Update status in auctionQueue
+  if (r.auctionQueue) {
+    const qPlayer = r.auctionQueue.find(p => p.name === r.blindAuction.currentPlayer.name);
+    if (qPlayer) {
+      qPlayer.status = "SOLD";
+      qPlayer.soldPrice = winner.amount;
+      qPlayer.winnerKey = winner.teamKey;
+    }
+  }
+
   // Emit finalization
   io.to(roomId).emit("exchange_finalized", {
     teams: r.teams,
+    queue: r.auctionQueue,
     message: team
       ? `${r.blindAuction.currentPlayer.name} sold to ${team.name}`
       : `${r.blindAuction.currentPlayer.name} sold`,
@@ -2604,15 +3195,20 @@ function finalizeSale(roomId) {
 
   setTimeout(() => {
     r.auctionIndex++;
-    startNextBlindPlayer(roomId);
+    // Explicitly check index bound before calling next
+    if (r.auctionIndex < r.auctionQueue.length) {
+      startNextBlindPlayer(roomId);
+    } else {
+      console.log("Blind auction complete. Open squad selection.");
+      io.to(roomId).emit("open_squad_selection");
+    }
   }, 2000);
 }
 
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+if (require.main === module) {
+  server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
 
-
-
-
-
+module.exports = app;
 
 // MONGODB_URI=mongodb+srv://tamil_18:tamil18@cluster0.gk2bbeg.mongodb.net/booking?retryWrites=true&w=majority

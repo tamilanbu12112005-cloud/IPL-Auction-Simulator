@@ -326,11 +326,24 @@ router.delete('/clear-squad/:email/:roomId', async (req, res) => {
 });
 
 // ✨ AUTH SESSION SYNC (MongoDB storage for LocalStorage data)
-router.get('/session/get/:email', async (req, res) => {
+const GuestSession = require('../models/GuestSession');
+
+// Get session (can be by email or playerId)
+router.get('/session/get/:id', async (req, res) => {
     try {
-        const user = await User.findOne({ email: req.params.email });
-        if (!user) return res.status(404).json({ message: 'User not found' });
-        res.json(user.session || {});
+        const id = req.params.id;
+        
+        // 1. Try User email
+        if (id.includes('@')) {
+            const user = await User.findOne({ email: id });
+            if (user) return res.json(user.session || {});
+        }
+        
+        // 2. Try Guest playerId
+        const guest = await GuestSession.findOne({ playerId: id });
+        if (guest) return res.json(guest.session || {});
+        
+        res.status(404).json({ message: 'Session not found' });
     } catch (e) {
         res.status(500).json({ message: e.message });
     }
@@ -338,29 +351,41 @@ router.get('/session/get/:email', async (req, res) => {
 
 router.post('/session/sync', async (req, res) => {
     try {
-        const { email, session } = req.body;
-        const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ message: 'User not found' });
-
-        // Update session fields
-        if (!user.session) user.session = {};
+        const { email, playerId, session } = req.body;
+        let targetDoc = null;
         
-        // Merge session data
-        if (session.playerId) user.session.playerId = session.playerId;
-        if (session.activeRoomId) user.session.activeRoomId = session.activeRoomId;
-        if (session.activeTeamKey) user.session.activeTeamKey = session.activeTeamKey;
-        if (session.lastRoomId) user.session.lastRoomId = session.lastRoomId;
-        if (session.lastPass) user.session.lastPass = session.lastPass;
-        
-        if (session.teamKeys) {
-            if (!user.session.teamKeys) user.session.teamKeys = new Map();
-            for (const [key, value] of Object.entries(session.teamKeys)) {
-                user.session.teamKeys.set(key, value);
+        if (email) {
+            targetDoc = await User.findOne({ email });
+        } else if (playerId) {
+            targetDoc = await GuestSession.findOne({ playerId });
+            if (!targetDoc) {
+                targetDoc = new GuestSession({ playerId, session: {} });
             }
         }
 
-        await user.save();
-        res.json({ message: 'Session synced with MongoDB', session: user.session });
+        if (!targetDoc) return res.status(404).json({ message: 'User/Guest not found' });
+
+        // Update session fields
+        if (!targetDoc.session) targetDoc.session = {};
+        
+        // Merge session data
+        if (session.playerId) targetDoc.session.playerId = session.playerId;
+        if (session.playerName) targetDoc.session.playerName = session.playerName;
+        if (session.activeRoomId) targetDoc.session.activeRoomId = session.activeRoomId;
+        if (session.activeTeamKey) targetDoc.session.activeTeamKey = session.activeTeamKey;
+        if (session.lastRoomId) targetDoc.session.lastRoomId = session.lastRoomId;
+        if (session.lastPass) targetDoc.session.lastPass = session.lastPass;
+        
+        if (session.teamKeys) {
+            if (!targetDoc.session.teamKeys) targetDoc.session.teamKeys = new Map();
+            for (const [key, value] of Object.entries(session.teamKeys)) {
+                targetDoc.session.teamKeys.set(key, value);
+            }
+        }
+
+        targetDoc.lastActivity = new Date();
+        await targetDoc.save();
+        res.json({ message: 'Session synced with MongoDB', session: targetDoc.session });
     } catch (e) {
         res.status(500).json({ message: e.message });
     }

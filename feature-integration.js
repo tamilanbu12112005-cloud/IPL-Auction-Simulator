@@ -5,149 +5,25 @@
 
 //const Achievement = require('./models/Achievement');
 
-// ================================================================
-// 1. PREDICT PRICE GAME - Server Handlers
-// ================================================================
 
-function setupPredictPriceGame(io, rooms) {
-  const predictions = new Map(); // roomId -> { bets: Map, locked: boolean }
-  const gameScores = new Map(); // roomId -> { teamId -> score }
-
-  function startPredictGame(roomId, player) {
-    const room = rooms[roomId];
-    if (!room) return;
-
-    predictions.set(roomId, { bets: new Map(), locked: false });
-
-    io.to(roomId).emit("predict_game_start", {
-      player: {
-        id: player.id,
-        name: player.name,
-        role: player.role,
-      },
-      duration: 10, // 10 seconds to predict
-    });
-
-    // Lock predictions after 10 seconds
-    setTimeout(() => {
-      const gameData = predictions.get(roomId);
-      if (gameData) {
-        gameData.locked = true;
-      }
-    }, 10000);
-  }
-
-  function submitPrediction(socket, roomId, data) {
-    const { prediction } = data;
-
-    let gameData = predictions.get(roomId);
-    if (!gameData) {
-        // Recovery if missing
-        gameData = { bets: new Map(), locked: false };
-        predictions.set(roomId, gameData);
-    }
-
-    if (gameData.locked) {
-        return socket.emit("error_message", "Predictions are locked!");
-    }
-
-    gameData.bets.set(socket.id, {
-      teamId: socket.teamId,
-      teamName: socket.teamName,
-      prediction: prediction,
-    });
-
-    // Acknowledge submission
-    socket.emit("prediction_submitted", { success: true });
-  }
-
-  function endPredictGame(roomId, player, actualPrice) {
-    const gameData = predictions.get(roomId);
-    if (!gameData) return;
-    const roomPredictions = gameData.bets;
-
-    // Calculate winners (closest predictions)
-    const results = Array.from(roomPredictions.entries()).map(
-      ([socketId, data]) => ({
-        socketId,
-        teamId: data.teamId,
-        teamName: data.teamName,
-        prediction: data.prediction,
-        difference: Math.abs(actualPrice - data.prediction),
-      }),
-    );
-
-    results.sort((a, b) => a.difference - b.difference);
-
-    // Award points
-    const winners = results.slice(0, 3).map((r, index) => {
-      const points = [50, 30, 20][index] || 0;
-
-      // Update scores
-      if (!gameScores.has(roomId)) {
-        gameScores.set(roomId, new Map());
-      }
-      const scores = gameScores.get(roomId);
-      const currentScore = scores.get(r.teamId) || 0;
-      scores.set(r.teamId, currentScore + points);
-
-      return {
-        ...r,
-        points,
-        rank: index + 1,
-      };
-    });
-
-    io.to(roomId).emit("predict_game_results", {
-      actualPrice,
-      predictions: results,
-      winners,
-    });
-
-    // Update leaderboard
-    io.to(roomId).emit("predict_leaderboard_update", {
-      scores: gameScores.get(roomId),
-      teamNames: {}, // Populate from room data
-    });
-
-    // Cleanup
-    predictions.delete(roomId);
-  }
-
-  return {
-    startPredictGame,
-    submitPrediction,
-    endPredictGame,
-  };
-}
 
 // ================================================================
-// 2. TRADE SYSTEM - Server Handlers
+// 1. TRADE SYSTEM - Server Handlers
 // ================================================================
 
-// ================================================================
-// 2. TRADE SYSTEM - Server Handlers
-// ================================================================
-
-// ================================================================
-// 2. TRADE SYSTEM - Server Handlers
-// ================================================================
-
-// ================================================================
-// 2. TRADE SYSTEM - Server Handlers
-// ================================================================
-
-function setupTradeSystem(io, rooms) {
-  const tradeData = new Map();
-
+function setupTradeSystem(io, rooms, saveCallback) {
   function initRoom(roomId) {
-    if (!tradeData.has(roomId)) {
-      tradeData.set(roomId, {
-        requests: [],
-        history: [],
-      });
-    }
-    return tradeData.get(roomId);
+    const room = rooms[roomId];
+    if (!room) return null;
+    
+    // Ensure trade fields exist on room object
+    if (!room.tradeRequests) room.tradeRequests = [];
+    if (!room.tradeHistory) room.tradeHistory = [];
+    
+    return {
+      requests: room.tradeRequests,
+      history: room.tradeHistory
+    };
   }
 
   // Helper: check if player is locked in another active trade
@@ -249,6 +125,10 @@ function setupTradeSystem(io, rooms) {
     };
 
     store.requests.push(newRequest);
+    
+    // Save to Database
+    if (saveCallback) saveCallback(roomId);
+    
     io.to(roomId).emit("trade_update", {
       requests: store.requests,
       history: store.history,
@@ -317,6 +197,9 @@ function setupTradeSystem(io, rooms) {
 
     if (existingIndex >= 0) request.proposals[existingIndex] = proposal;
     else request.proposals.push(proposal);
+
+    // Save to Database
+    if (saveCallback) saveCallback(roomId);
 
     io.to(roomId).emit("trade_update", {
       requests: store.requests,
@@ -470,6 +353,10 @@ function setupTradeSystem(io, rooms) {
         requests: store.requests,
         history: store.history,
       });
+      
+      // Save to Database
+      if (saveCallback) saveCallback(roomId);
+      
       io.to(roomId).emit("lobby_update", {
         teams: room.teams,
         userCount: room.users.length,
@@ -655,6 +542,9 @@ function setupTradeSystem(io, rooms) {
       },
     });
 
+    // Save to Database
+    if (saveCallback) saveCallback(roomId);
+
     // Broadcast
     io.to(roomId).emit("trade_update", {
       requests: store.requests,
@@ -688,6 +578,9 @@ function setupTradeSystem(io, rooms) {
 
   function rejectProposal(socket, roomId, data, tradeInfo) {
     const { requestId, proposalId } = data;
+    const room = rooms[roomId];
+    if (!room) return;
+    
     const store = initRoom(roomId);
     const request = store.requests.find((r) => r.id === requestId);
     if (!request) return;
@@ -708,6 +601,9 @@ function setupTradeSystem(io, rooms) {
         details: tradeInfo,
       });
     }
+
+    // Save to Database
+    if (saveCallback) saveCallback(roomId);
 
     io.to(roomId).emit("trade_update", {
       requests: store.requests,
@@ -790,6 +686,10 @@ function setupTradeSystem(io, rooms) {
     console.log(`[TRADE] Created Request:`, newRequest);
 
     store.requests.push(newRequest);
+    
+    // Save to Database
+    if (saveCallback) saveCallback(roomId);
+    
     io.to(roomId).emit("trade_update", {
       requests: store.requests,
       history: store.history,
@@ -907,7 +807,6 @@ function setupAnalytics(io, rooms) {
 // ================================================================
 
 module.exports = {
-  setupPredictPriceGame,
   setupTradeSystem, // Export Trade System
   setupAchievementSystem,
   setupAnalytics,
@@ -921,7 +820,6 @@ module.exports = {
 const featureIntegration = require('./feature-integration');
 
 // Initialize features
-const predictGame = featureIntegration.setupPredictPriceGame(io, rooms);
 const tradeSystem = featureIntegration.setupTradeSystem(io, rooms);
 const achievements = featureIntegration.setupAchievementSystem(io);
 const analytics = featureIntegration.setupAnalytics(io, rooms);
@@ -929,11 +827,6 @@ const analytics = featureIntegration.setupAnalytics(io, rooms);
 // Add socket event listeners
 io.on('connection', (socket) => {
     
-    // Predict Price Game
-    socket.on('submit_prediction', (data) => {
-        predictGame.submitPrediction(socket, socket.roomId, data);
-    });
-
     // Trade System
     socket.on('create_trade', (data) => {
         tradeSystem.createTrade(socket, socket.roomId, data);
@@ -951,24 +844,6 @@ io.on('connection', (socket) => {
         tradeSystem.getActiveTrades(socket, socket.roomId);
     });
 
-    // Achievements
-    socket.on('get_achievements', (data) => {
-        achievements.getUserAchievements(socket, data.userId);
-    });
-
-    // Analytics
-    socket.on('get_analytics', () => {
-        analytics.getAnalytics(socket, socket.roomId);
-    });
-
-    // Track events for achievements and analytics
-    socket.on('player_sold', (data) => {
-        analytics.trackSale(socket.roomId, data);
-        achievements.checkAchievements(socket.userId, 'player_sold', data);
-    });
-
-    socket.on('bid_placed', (data) => {
-        analytics.trackBid(socket.roomId, data);
-    });
+    // ... (rest of standard socket handlers)
 });
 */

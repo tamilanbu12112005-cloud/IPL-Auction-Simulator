@@ -1,0 +1,205 @@
+/* External CSS for play.html */
+
+/* General styles */
+.live-pill {
+  font-size: 0.6rem;
+  color: #666;
+  font-weight: 600;
+  margin-top: -2px;
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.5s ease-in-out;
+}
+
+.fade-in-up-0-1 {
+  animation-delay: 0.1s;
+}
+
+.fade-in-up-0-2 {
+  animation-delay: 0.2s;
+}
+
+.fade-in-up-0-3 {
+  animation-delay: 0.3s;
+}
+
+.fade-in-up-0-4 {
+  animation-delay: 0.4s;
+}
+
+.fade-in-up-0-5 {
+  animation-delay: 0.5s;
+}
+
+.stat-box .award-title {
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.stat-box .award-val {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.stat-box .award-player {
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.stat-box i {
+  font-size: 2.5rem;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  margin: 3px;
+  opacity: 0.25;
+}
+
+.champion-banner {
+  animation: fadeInUp 0.5s ease-in-out;
+}
+
+.champion-label {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.champion-team {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+/* Table styles */
+.table-custom th {
+  text-align: center;
+  width: 60px;
+}
+
+/* Modal styles */
+.modal .modal-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal .modal-body {
+  padding: 20px;
+}
+
+/* Live Match UI */
+.live-match-ui .scoreboard-header {
+  background-color: rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px;
+}
+
+.live-match-ui .commentary {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px;
+}
+
+.live-match-ui .over-history {
+  background-color: black;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  height: 60px;
+  overflow: hidden;
+  padding: 10px;
+}
+
+/* Added missing vendor prefixes */
+
+/* Safari compatibility for backdrop-filter */
+.backdrop-filter {
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+/* Safari compatibility for background-clip */
+.background-clip {
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Added missing styles from inline CSS */
+
+/* Animation delays */
+.fade-in-up-0-1 {
+  animation-delay: 0.1s;
+}
+
+.fade-in-up-0-2 {
+  animation-delay: 0.2s;
+}
+
+.fade-in-up-0-3 {
+  animation-delay: 0.3s;
+}
+
+.fade-in-up-0-4 {
+  animation-delay: 0.4s;
+}
+
+.fade-in-up-0-5 {
+  animation-delay: 0.5s;
+}
+
+/* Font size and spacing */
+.font-size-06 {
+  font-size: 0.6rem;
+}
+
+.font-size-07 {
+  font-size: 0.7rem;
+}
+
+.letter-spacing-03 {
+  letter-spacing: 0.3em;
+}
+
+.letter-spacing-1 {
+  letter-spacing: 1px;
+}
+
+/* Width and height */
+.width-30 {
+  width: 30px;
+}
+
+.height-30 {
+  height: 30px;
+}
+
+.height-100 {
+  height: 100px;
+}
+
+/* Positioning */
+.position-absolute {
+  position: absolute;
+}
+
+.end-0 {
+  right: 0;
+}
+
+.bottom-0 {
+  bottom: 0;
+}
+
+.margin-3 {
+  margin: 3px;
+}
+
+/* Rounded corners */
+.rounded-circle {
+  border-radius: 50%;
+}
+
+/* Background and opacity */
+.bg-opacity-25 {
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+.opacity-25 {
+  opacity: 0.25;
+}

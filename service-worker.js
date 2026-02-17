@@ -1,5 +1,5 @@
 // Service Worker for IPL Auction PWA
-const CACHE_NAME = 'ipl-pro-hub-v2';
+const CACHE_NAME = 'ipl-pro-hub-v3';
 const urlsToCache = [
   '/',
   '/ipl.html',
@@ -83,10 +83,23 @@ self.addEventListener('fetch', event => {
         return caches.match(event.request)
           .then(response => {
              if (response) return response;
-             // Fallback for HTML
+             
+             // Fallback for HTML pages
              if (event.request.mode === 'navigate') {
                  return caches.match('/offline.html'); 
              }
+             
+             // Fallback for images
+             if (event.request.destination === 'image') {
+                 return new Response('<svg>...</svg>', { headers: { 'Content-Type': 'image/svg+xml' }});
+             }
+
+             // LAST RESORT: Return a valid 404/Offline Response instead of undefined
+             return new Response('Offline and not cached', { 
+                 status: 503, 
+                 statusText: 'Service Unavailable',
+                 headers: new Headers({ 'Content-Type': 'text/plain' })
+             });
           });
       })
   );
