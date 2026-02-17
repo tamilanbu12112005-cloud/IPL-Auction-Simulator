@@ -1627,7 +1627,7 @@
             }
 
             // --- BATTING CARD ---
-            let html = `<h6 class="fw-bold mb-3 text-info text-uppercase border-start border-3 border-info ps-2">Batting Card</h6>`;
+            let html = `<h6 class="fw-bold mb-3 text-white text-uppercase border-start border-3 border-white ps-2">Batting Card</h6>`;
             html += '<div class="table-responsive mb-4"><table class="table table-sm table-custom text-white small">';
             html += `
                 <thead class="bg-black bg-opacity-50">
@@ -1647,11 +1647,11 @@
                 const sr = b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0';
                 const rowClass = 'text-white fw-medium';
                 const isHighImpact = b.runs >= 30 || (b.runs / b.balls > 2.0 && b.balls > 5);
-                const impactClass = isHighImpact ? 'text-impact-green' : 'text-info';
+                const impactClass = 'text-white';
 
                 let dismissal = '';
                 if (b.status === 'not out') {
-                    dismissal = '<span class="text-success fw-bold">not out</span>';
+                    dismissal = '<span class="text-white fw-bold">not out</span>';
                 } else if (b.status === 'out') {
                     const type = b.wicketType || 'out';
                     const bowler = b.bowler || '';
@@ -1683,7 +1683,7 @@
                             ${b.name} ${b.status === 'not out' ? '*' : ''}
                         </td>
                         <td class="sc-dismissal small text-secondary fst-italic">${dismissal}</td>
-                        <td class="text-center fw-bold text-warning">${b.runs}</td>
+                        <td class="text-center fw-bold text-white">${b.runs}</td>
                         <td class="text-center text-muted">${b.balls}</td>
                         <td class="text-center text-secondary">${b.fours || 0}</td>
                         <td class="text-center text-secondary">${b.sixes || 0}</td>
@@ -1706,8 +1706,8 @@
                     </div>
                     <div class="col-6">
                         <div class="p-3 bg-black bg-opacity-50 rounded border border-info border-opacity-10 h-100 text-end">
-                            <div class="text-info small fw-bold text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px;">Total Score</div>
-                            <div class="text-warning fw-bold fs-5">${innings.score}/${innings.wkts} <span class="text-white-50 small fw-normal" style="font-size: 0.8rem;">(${innings.oversDisplay || layoutOvers(innings.balls)} ov)</span></div>
+                            <div class="text-white small fw-bold text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px;">Total Score</div>
+                            <div class="text-white fw-bold fs-5">${innings.score}/${innings.wkts} <span class="text-white-50 small fw-normal" style="font-size: 0.8rem;">(${innings.oversDisplay || layoutOvers(innings.balls)} ov)</span></div>
                         </div>
                     </div>
                 </div>
@@ -1715,7 +1715,7 @@
 
             // --- BOWLING CARD ---
             if (innings.bowling && innings.bowling.length > 0) {
-                html += `<h6 class="fw-bold mb-3 text-purple text-uppercase border-start border-3 border-purple ps-2 mt-4" style="border-color: #bc13fe !important; color: #bc13fe;">Bowling Card</h6>`;
+                html += `<h6 class="fw-bold mb-3 text-white text-uppercase border-start border-3 border-white ps-2 mt-4">Bowling Card</h6>`;
                 html += '<div class="table-responsive mb-4"><table class="table table-sm table-custom text-white small">';
                 html += `
                     <thead class="bg-black bg-opacity-50">
@@ -1731,6 +1731,8 @@
                     <tbody>`;
 
                 innings.bowling.forEach(bowler => {
+                    // Filter unbowled players
+                    if ((!bowler.balls || bowler.balls === 0) && (!bowler.overs || parseFloat(bowler.overs) === 0)) return;
                     const overs = bowler.oversDisplay || bowler.overs || (bowler.balls ? `${Math.floor(bowler.balls / 6)}.${bowler.balls % 6}` : '0.0');
                     const runs = bowler.runs || 0;
                     const wickets = bowler.wkts || bowler.wickets || 0;
@@ -1738,9 +1740,9 @@
                     const economy = bowler.economy || (bowler.balls > 0 ? (runs / (bowler.balls / 6)).toFixed(2) : '0.00');
 
                     const isHighImpact = wickets >= 2 || (parseFloat(economy) < 6 && parseFloat(overs) >= 2);
-                    const impactClass = isHighImpact ? 'text-impact-green' : 'text-purple';
+                    const impactClass = 'text-white';
                     const rowClass = 'text-white fw-medium';
-                    const ecoClass = parseFloat(economy) <= 6 ? 'text-success' : (parseFloat(economy) >= 10 ? 'text-danger' : 'text-muted');
+                    const ecoClass = 'text-white-50';
 
                     html += `
                         <tr>
@@ -1751,7 +1753,7 @@
                             <td class="text-center text-muted">${overs}</td>
                             <td class="text-center text-muted">${maidens}</td>
                             <td class="text-center text-white fw-bold">${runs}</td>
-                            <td class="text-center fw-bold ${wickets >= 2 ? 'text-success' : 'text-white'}">${wickets}</td>
+                            <td class="text-center fw-bold text-white">${wickets}</td>
                             <td class="text-center ${ecoClass}">${economy}</td>
                         </tr>
                     `;
